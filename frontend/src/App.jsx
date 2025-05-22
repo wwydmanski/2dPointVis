@@ -160,6 +160,7 @@ function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, 
   const debouncedSendMessage = useCallback(
     debounce((message) => {
       sendMessage(message);
+      setStreamingData([]);
       setIsLoading(true);
     }, 100),
     [sendMessage]
@@ -249,6 +250,11 @@ function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, 
       setIsLoading(false);
       try {
         const data = JSON.parse(lastMessage.data);
+        if (data.message === 'no_results') {
+          setNoResults(true);
+        } else {
+          setNoResults(false);
+        }
         switch (data.type) {
           case 'init':
             // Set permanent background data
@@ -287,10 +293,6 @@ function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, 
     }
   }, [lastMessage, backgroundData]);
 
-  // Clear streaming data when query parameters change
-  React.useEffect(() => {
-    setStreamingData([]);
-  }, [selectedType, lengthRange, pLDDT, supercog, goTerm, aspect, taxonomy]);
 
   function onSelectionChanged(data) {
     if (data.selectedDataPoints.length === 0) return;
@@ -511,6 +513,9 @@ function App() {
   const [goTerm, setGoTerm] = React.useState("");
   const [aspect, setAspect] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
+  const [viewerLoading, setViewerLoading] = React.useState(false);
+  const [viewerError, setViewerError] = React.useState(null);
+  const [noResults, setNoResults] = React.useState(false);
   const [goTermDetails, setGoTermDetails] = React.useState(null);
   const [selectedGoTermValue, setSelectedGoTermValue] = React.useState(null);
   const [selectedNonRepresentative, setSelectedNonRepresentative] = React.useState(null);
@@ -527,7 +532,10 @@ function App() {
 
       // Use the protein name to fetch GO terms
       fetch(`${host}/goterm/${name}`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error('Not found');
+          return res.json();
+        })
         .then(goData => {
           setGoTermDetails(goData);
         })
@@ -545,6 +553,11 @@ function App() {
       const viewerInstance = new PDBeMolstarPlugin();
       window.viewer = viewerInstance;
     }
+    if (!pdb_loc) {
+      setViewerError('Structure not found');
+      return;
+    }
+    setViewerLoading(true);
 
     window.viewer.render(document.getElementById('viewer-dom'), {
       customData: {
@@ -554,6 +567,8 @@ function App() {
       bgColor: 'white',
       alphafoldView: true,
     })
+    setViewerLoading(false);
+    setViewerError(null);
   }
 
   function onClick(datum) {
@@ -561,8 +576,9 @@ function App() {
 
     fetch(`${host}/name_search?name=${datum.protein}`)
       .then(res => res.json())
-      .then(data => {
-        datum.others = data[0].others[0];
+      .then(resp => {
+        const data = resp.results || [];
+        if (data.length > 0) datum.others = data[0].others[0];
         if (datum.protein == datum.clean_name)
           setSelectedNonRepresentative(null);
         else
@@ -572,9 +588,15 @@ function App() {
       
       // renderProtein(datum.pdb_loc);
       fetch(`${host}/pdb_loc/${datum.protein}`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error('Not found');
+          return res.json();
+        })
         .then(pdb_loc => {
           renderProtein(pdb_loc);
+        })
+        .catch(() => {
+          setViewerError('Structure not found');
         });
   }
 
@@ -617,6 +639,23 @@ function App() {
           }}
         >
           <CircularProgress sx={{ color: theme.palette.primary.main }} />
+        </Box>
+      )}
+      {noResults && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: '55%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 9998,
+            bgcolor: 'background.paper',
+            px: 2,
+            py: 1,
+            borderRadius: 1
+          }}
+        >
+          <Typography variant="body2">No results found</Typography>
         </Box>
       )}
       <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', color: 'text.primary' }}>
@@ -668,8 +707,8 @@ function App() {
                   onInputChange={(e, value) => {
                     fetch(`${nameSearchUrl}?name=${value}`)
                       .then(res => res.json())
-                      .then(data => {
-                        setAutocomplete(data);
+                      .then(resp => {
+                        setAutocomplete(resp.results || []);
                       });
                   }}
                 />
@@ -714,6 +753,7 @@ function App() {
                     setGoTerm("");
                     setAspect("");
                     setSelectedItem(null);
+                    setSelectedGoTermValue(null);
                   }}
                 />
                 <Typography variant="body2" alignContent={"center"} color={selectionMode === SearchMode.GOTERM ? "primary" : "text.secondary"}>
@@ -963,6 +1003,21 @@ function App() {
             top: "10px",
             right: "6px",
           }}>
+            {viewerLoading && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 10
+                }}>
+                <CircularProgress size={24} />
+              </Box>
+            )}
+            {viewerError && (
+              <Box sx={{ p: 1, color: 'error.main', fontSize: '0.75rem' }}>{viewerError}</Box>
+            )}
             <div id="viewer-dom" style={{ width: "300px", height: "300px" }}></div>
           </Card>
         </Fade>
