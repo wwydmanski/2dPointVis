@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -244,9 +244,13 @@ async def pdb(pdb_id: str):
     pdb_id = pdb_id.replace("..", "")
     full_loc = PDB_LOC + pdb_id
     if full_loc.endswith(".pdb"):
+        if not os.path.exists(full_loc):
+            raise HTTPException(status_code=404, detail="PDB file not found")
         return full_loc
 
     elif full_loc.endswith(".cif"):
+        if not os.path.exists(full_loc):
+            raise HTTPException(status_code=404, detail="PDB file not found")
         start_time = time.time()
         cif_to_pdb(full_loc, full_loc + ".pdb")
         logger.info(f"CIF to PDB conversion took {time.time() - start_time:.2f}s")
@@ -259,7 +263,7 @@ async def protein_goterm(protein: str):
     
     if not os.path.exists(protein_file):
         logger.info(f"No GO term predictions found for protein: {protein}")
-        return []
+        raise HTTPException(status_code=404, detail="GO term predictions not found")
     
     try:
         # Read the GO term predictions for this protein
@@ -303,9 +307,9 @@ async def name_search(name: str):
     
     # Use cached regex search for faster matching
     matching_keys = search_proteins(name)
-    
+
     if not matching_keys:
-        return []
+        return {"results": [], "count": 0}
     
     # Get original indices
     original_indices = [PROTEIN_INDEX_MAP[key] for key in matching_keys[:10]]
@@ -330,7 +334,7 @@ async def name_search(name: str):
             subset.append(data_)
     
     logger.info(f"Processing matching names took {time.time() - processing_start_time:.2f}s")
-    return subset
+    return {"results": subset, "count": len(matching_keys)}
 
 
 @api_router.get("/goterm_autocomplete")
@@ -381,7 +385,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
                     
                     if len(points) == 0:
-                        await websocket.send_json({"type": "update", "points": [], "is_last": True})
+                        await websocket.send_json({"type": "update", "points": [], "is_last": True, "message": "no_results"})
                         logger.info(f"WebSocket query processed with no results in {time.time() - request_time:.2f}s")
                         continue
 
