@@ -48,3 +48,11 @@ export const X_START = 40;
 
 // @ts-ignore
 export const DJANGO_HOST = import.meta.env.VITE_DJANGO_HOST;
+
+export const colorMap = {
+  "AFDB dark clusters": "#4C5B5C",
+  "AFDB light clusters": "#4aa3ff",
+  "ESMAtlas clusters": "#2ca02c",
+  "MIP clusters": "#d62728",
+  "MIP singletons": "#ff9999"
+}

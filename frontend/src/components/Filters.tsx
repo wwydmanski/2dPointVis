@@ -104,10 +104,9 @@ export const Filters = ({
                   <Box sx={{ width: "33.3%" }}>
                     <Typography variant="body2" gutterBottom sx={{ mb: 1 }}>Taxonomy</Typography>
                     <Select
-                      value={taxonomy}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setTaxonomy(typeof value === "string" ? value.split(",") : value);
+                      value={"taxonomy"}
+                      onChange={(e: any) => {
+                        setTaxonomy(e.target.value);
                       }}
                       size="small"
                       fullWidth
