@@ -1,12 +1,13 @@
 import React from 'react';
-import { XyScatterRenderableSeries, XyDataSeries, SweepAnimation, EllipsePointMarker, DataPointSelectionPaletteProvider, GenericAnimation, easing, NumberRangeAnimator, NumberRange, Logger } from "scichart";
-import { prepareChart } from '../chartSetup';
 import useWebSocket from 'react-use-websocket';
 import { useCallback } from 'react';
 import { debounce } from 'lodash';
 import { DJANGO_HOST } from '../utils/consts';
-import { Cosmograph, CosmographProvider } from '@cosmograph/react';
+import { Graph } from '@cosmos.gl/graph';
 import { colorMap } from '../utils/consts';
+import { useRef } from 'react';
+import hexToRgba from '../utils/hexToRgba';
+import graphConfig from '../utils/graphConfig';
 
 export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy }) {
 
@@ -35,7 +36,85 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     share: false,
   });
 
+  const graphRef = useRef();
+  const graphInstanceRef = useRef(null);
   const lastProcessedMessageRef = React.useRef(null);
+
+  const handleNodeClick = (index, viewableData) => {
+    graphInstanceRef.current.unselectPoints();
+    if (index !== undefined && viewableData) {
+      const node = viewableData[index];
+      graphInstanceRef.current.selectPointByIndex(index);
+      selectionCallback(node);
+    }
+  }
+
+  React.useEffect(() => {
+    if (!graphInstanceRef.current && graphRef.current) {
+      graphInstanceRef.current = new Graph(graphRef.current, graphConfig(zoomCallback));
+    }
+    
+    return () => {
+      if (graphInstanceRef.current) {
+        graphInstanceRef.current.destroy();
+        graphInstanceRef.current = null;
+      }
+    };
+  }, []);
+  
+  const prevViewableDataRef = useRef();
+  
+  React.useEffect(() => {
+    if (!graphInstanceRef.current || !viewableData) return;
+    
+    const prevData = prevViewableDataRef.current;
+    
+    if (!prevData || prevData.length === 0) {
+      
+      const pointPositions = viewableData.map((d) => [d.x, d.y]).flat();
+      const pointColors = viewableData.map((element) => {
+        return element["color"] || colorMap[element["origin"]] || "#888888";
+      }).map(hexToRgba).flat();
+      
+      graphInstanceRef.current.setPointPositions(pointPositions);
+      graphInstanceRef.current.setPointColors(pointColors);
+      graphInstanceRef.current.config.onClick = ((index) => handleNodeClick(index, viewableData));
+      graphInstanceRef.current.zoom(0.9);
+      graphInstanceRef.current.pause();
+      graphInstanceRef.current.render();
+    } 
+
+    else if (prevData.length !== viewableData.length) {
+      const pointPositions = viewableData.map((d) => [d.x, d.y]).flat();
+      const pointColors = viewableData.map((element) => {
+        return element["color"] || colorMap[element["origin"]] || "#888888";
+      }).map(hexToRgba).flat();
+      graphInstanceRef.current.config.onClick = ((index) => handleNodeClick(index, viewableData))
+      graphInstanceRef.current.setPointPositions(pointPositions);
+      graphInstanceRef.current.setPointColors(pointColors);
+      graphInstanceRef.current.render();
+    }
+    
+    prevViewableDataRef.current = viewableData;
+  }, [viewableData]);
+  
+  const zoomCallback = useCallback((zoomEvent) => {
+    if (graphInstanceRef.current === null) return;
+
+    const canvasWidth = graphInstanceRef.current.canvas.width;
+    const canvasHeight = graphInstanceRef.current.canvas.height;
+
+    const [left, top] = graphInstanceRef.current.screenToSpacePosition([0, 0]);
+    const [right, bottom] = graphInstanceRef.current.screenToSpacePosition([canvasWidth, canvasHeight]);
+
+    setVisible({
+      x: {  min: left, max: right },
+      y: { min: bottom, max: top }
+    });
+
+    setCompletedX(true);
+    setCompletedY(true);
+  }, [viewableData, setVisible, graphInstanceRef.current]);
 
   const debouncedSendMessage = useCallback(
     debounce((message) => {
@@ -53,7 +132,6 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
           .filter((d) => supercog.includes(d["superCOG_v10"]))
           .filter((d) => taxonomy.includes(d["taxonomy"]))
       data.map((element) => element["id"] = element["clean_name"])
-      data.map((element) => element["color"] = colorMap[element["origin"]]);
       setViewableData(data);
     }
   }, [currentData, lengthRange, pLDDT, supercog, taxonomy]);
@@ -94,7 +172,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     setPreviousGoTerm(goTerm);
     setPreviousAspect(aspect);
     setPreviousTaxonomy(taxonomy);
-  }, [completedX, completedY, selectedType, lengthRange, pLDDT, supercog, goTerm, aspect, visible, debouncedSendMessage, taxonomy]);
+  }, [completedX, completedY, goTerm, visible, debouncedSendMessage]);
 
   React.useEffect(() => {
     return () => {
@@ -119,13 +197,9 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
           case 'update':
             if (data.is_last) {
-              // Last batch - update the streaming data
-              setStreamingData(prev => [...prev, ...data.points]);
               setIsLoading(false);
-            } else {
-              // Accumulate streaming data
-              setStreamingData(prev => [...prev, ...data.points]);
             }
+            setStreamingData(prev => [...prev, ...data.points]);
             break;
 
           case 'error':
@@ -134,14 +208,11 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
             break;
         }
 
-        // Combine background and streaming data for rendering
         let combinedData;
         if (!goTerm && !aspect)
           combinedData = [...backgroundData, ...streamingData];
         else
           combinedData = streamingData;
-
-        console.log("Combined data:", combinedData.length);
 
         setCurrentData(combinedData);
         window.currentData = combinedData;
@@ -152,25 +223,15 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     }
   }, [lastMessage, backgroundData]);
 
-  // Clear streaming data when query parameters change
   React.useEffect(() => {
     setStreamingData([]);
-  }, [selectedType, lengthRange, pLDDT, supercog, goTerm, aspect, taxonomy]);
+  }, [goTerm, completedX, completedY]);
 
   React.useEffect(() => {
     sendMessage(JSON.stringify({ type: 'init' }));
   }, []);
   
   return (
-    <CosmographProvider>
-      <Cosmograph
-      useQuadtree={true}
-      style={{ width: "100%", height: "100vh" }} 
-      nodes={viewableData} 
-      nodeColor={(node) => node["color"]} 
-      nodeSize={0.05}
-      showDynamicLabels={false}
-    />
-    </CosmographProvider>
+    <div id="chart" style={{ width: "100%", height: "100vh", position: "absolute", top: 0, left: 0,overflow: "hidden" }} ref={graphRef} />
   );
 }
