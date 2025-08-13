@@ -1,4 +1,5 @@
 const graphConfig = (zoomCallback: (zoomEvent: any) => void) => ({
+    pointGreyoutOpacity: 0.4,
     enableSimulation: false,
     spaceSize: 4096,
     backgroundColor: '#2d313a',

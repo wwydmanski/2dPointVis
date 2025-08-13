@@ -13,6 +13,7 @@ import GoTermDetails from './components/GoTermDetails';
 import Filters from './components/Filters';
 import GithubCard from './components/GithubCard';
 import { theme } from './utils/theme';
+import { set } from 'lodash';
 
 function App() {
   const [data, setData] = React.useState(null);
@@ -24,6 +25,7 @@ function App() {
   const [taxonomy, setTaxonomy] = React.useState(Object.keys(TAXONOMY_MAPPING));
   const [autocomplete, setAutocomplete] = React.useState([]);
   const [selectedItem, setSelectedItem] = React.useState(null);
+  const [zoomedItem, setZoomedItem] = React.useState(null);
   const [selectionMode, setSelectionMode] = React.useState(SearchMode.NAME);
   const [goTerm, setGoTerm] = React.useState("");
   const [aspect, setAspect] = React.useState("");
@@ -69,6 +71,7 @@ function App() {
         else
           setSelectedNonRepresentative(datum.protein);
         setData(datum);
+        setSelectedItem(datum);
       })
       
       // renderProtein(datum.pdb_loc);
@@ -79,9 +82,13 @@ function App() {
         });
   }
 
+  function handleSearching(foundItem) {
+    setSelectedItem(foundItem);
+    setZoomedItem(foundItem);
+  }
+
 
   let name = data?.representative;
-  console.log(data);
   if (data?.origin.includes("AFDB"))
     if (name.match(/-/g)?.length > 1)
       name = name.split("-")[1];
@@ -129,6 +136,7 @@ function App() {
           aspect={aspect}
           setIsLoading={setIsLoading}
           taxonomy={taxonomy}
+          zoomedItem={zoomedItem}
         />
         <Stack direction="column" spacing={2} sx={{
           position: "absolute",
@@ -142,7 +150,7 @@ function App() {
           {/* Search Component */}
           <Search 
             autocomplete={autocomplete} 
-            setSelectedItem={setSelectedItem} 
+            setSelectedItem={handleSearching} 
             onClick={onClick} 
             setAutocomplete={setAutocomplete} 
             setSelectionMode={setSelectionMode} 

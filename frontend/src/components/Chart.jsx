@@ -7,7 +7,7 @@ import { colorMap } from '../utils/consts';
 import hexToRgba from '../utils/hexToRgba';
 import graphConfig from '../utils/graphConfig';
 
-export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy }) {
+export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem }) {
   // Main state
   const [currentData, setCurrentData] = useState(undefined);
   const [viewableData, setViewableData] = useState(undefined);
@@ -47,7 +47,6 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
   const handleNodeClick = (index, data) => {
     if (!graphInstanceRef.current) return;
-    
     graphInstanceRef.current.unselectPoints();
     if (index !== undefined && data) {
       const node = data[index];
@@ -88,26 +87,35 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   }, [zoomCallback]);
   
   // Handle data visualization updates
+  const [pendingZoomIndex, setPendingZoomIndex] = useState(null);
+  const [hasInitialZoomed, setHasInitialZoomed] = useState(false);
+
   useEffect(() => {
     if (!graphInstanceRef.current || !viewableData) return;
-    
+
     const pointPositions = viewableData.map(d => [d.x, d.y]).flat();
     const pointColors = viewableData.map(element => 
       hexToRgba(element.color || colorMap[element.origin] || "#888888")
     ).flat();
-    
+
     graphInstanceRef.current.setPointPositions(pointPositions);
     graphInstanceRef.current.setPointColors(pointColors);
     graphInstanceRef.current.config.onClick = (index => handleNodeClick(index, viewableData));
-    
-    // Only zoom on first render
-    if (!prevViewableDataRef.current || prevViewableDataRef.current.length === 0) {
-      graphInstanceRef.current.zoom(0.9);
-      graphInstanceRef.current.pause();
+
+    // Only zoom out on very first dataset render
+    if (!hasInitialZoomed && viewableData.length > 0) {
+      setHasInitialZoomed(true);
     }
-    
+
     graphInstanceRef.current.render();
     prevViewableDataRef.current = viewableData;
+
+    // Zoom to pending index if set
+    if (pendingZoomIndex !== null && viewableData[pendingZoomIndex]) {
+      graphInstanceRef.current.zoomToPointByIndex(pendingZoomIndex, 700, 100);
+      graphInstanceRef.current.selectPointByIndex(pendingZoomIndex);
+      setPendingZoomIndex(null);
+    }
   }, [viewableData]);
   
   // Filter current data based on filter parameters
@@ -230,6 +238,10 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
         : streamingData;
 
       setCurrentData(combinedData);
+      if(foundItem && graphInstanceRef.current && graphInstanceRef.current.getSelectedIndices().length > 0) {
+        const index = (!goTerm && !aspect) ? backgroundData.length : streamingData.length
+        graphInstanceRef.current.selectPointByIndex(index);
+      }
     } catch (error) {
       console.error('Error parsing WebSocket message:', error);
     }
@@ -237,13 +249,35 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
   // Reset streaming data when filters change
   useEffect(() => {
-    setStreamingData([]);
+    const resetData = foundItem ? [foundItem] : [];
+    setStreamingData(resetData);
   }, [goTerm, aspect, viewportChanged]);
 
   // Initial data fetch
   useEffect(() => {
     sendMessage(JSON.stringify({ type: 'init' }));
   }, [sendMessage]);
+
+  useEffect(() => {
+    if(zoomedItem && graphInstanceRef.current && viewableData) {
+      let found = false;
+      viewableData.forEach((item, index) => {
+        if (item["clean_name"] === zoomedItem["clean_name"]) {
+          graphInstanceRef.current.zoomToPointByIndex(index, 700, 100);
+          graphInstanceRef.current.selectPointByIndex(index);
+          found = true;
+        }
+      });
+      if (!found) {
+        setCurrentData(prev => {
+          const updatedData = [...prev];
+          updatedData.push(zoomedItem);
+          setPendingZoomIndex(updatedData.length - 1);
+          return updatedData;
+        });
+      }
+    }
+  }, [zoomedItem]);
   
   return (
     <div id="chart" style={{ width: "100%", height: "100vh", position: "absolute", top: 0, left: 0, overflow: "hidden" }} ref={graphRef} />
