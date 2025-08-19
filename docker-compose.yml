@@ -4,6 +4,8 @@ services:
     security_opt:
       - seccomp:unconfined
     container_name: point_vis_backend
+    environment:
+      - DATA_PATH=${DATA_PATH}
     volumes:
       - ./backend:/app
       - ${DATA_PATH:-./data}:/mnt/data
