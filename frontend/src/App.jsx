@@ -35,7 +35,9 @@ function App() {
   const [selectedNonRepresentative, setSelectedNonRepresentative] = React.useState(null);
 
   // Update this useEffect to fetch GO term details when a protein is selected
-  const host = DJANGO_HOST;
+  const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
+    ? DJANGO_HOST
+    : window.location.origin;
 
   React.useEffect(() => {
     if (data && data.protein) {
