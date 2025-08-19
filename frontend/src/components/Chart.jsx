@@ -38,12 +38,19 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const lastProcessedMessageRef = useRef(null);
   const prevViewableDataRef = useRef();
 
-  const { sendMessage, lastMessage } = useWebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${DJANGO_HOST.replace("http://", "").replace("https://", "") || window.location.host}/ws/points`, {
-    shouldReconnect: (closeEvent) => true,
-    reconnectInterval: 3000,
-    reconnectAttempts: 10,
-    share: false,
-  });
+  const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
+  ? DJANGO_HOST.replace("http://", "").replace("https://", "")
+  : window.location.host;
+
+  const { sendMessage, lastMessage } = useWebSocket(
+    `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${host}/ws/points`,
+    {
+      shouldReconnect: (closeEvent) => true,
+      reconnectInterval: 3000,
+      reconnectAttempts: 10,
+      share: false,
+    }
+  );
 
   const handleNodeClick = (index, data) => {
     if (!graphInstanceRef.current) return;
