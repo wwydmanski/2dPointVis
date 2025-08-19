@@ -18,9 +18,14 @@ import re
 import tqdm
 
 
+# Read DATA_PATH from environment variable
+DATA_PATH = os.environ.get("DATA_PATH")
+if not DATA_PATH:
+    raise RuntimeError("DATA_PATH environment variable is not set")
+
 start_time = time.time()
 DATA_FULL = pd.read_parquet(
-    "/mnt/data/data.parquet"
+    f"{DATA_PATH}/data.parquet"
 ).drop(columns=["afdb_hq"])
 DATA_FULL["protein"] = list(DATA_FULL.index)
 DATA = DATA_FULL.dropna(subset=["x", "y"])
@@ -41,19 +46,19 @@ DATA.loc[
 DATA["clean_name"] = DATA["protein"].str.replace("AF-", "").str.replace("-model_v4", "").str.replace("-F1", "")
 DATA["representative"] = DATA["clean_name"]
 
-PDB_LOC = "/mnt/data/mip-follow-up_clusters/struct/"
-GOTERM_LOC = "/mnt/data/deepfri_predictions_HQ"
-PROTEIN_GOTERM_LOC = "/mnt/data/deepfri_predictions_protein_HQ"
+PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
+GOTERM_LOC = f"{DATA_PATH}/deepfri_predictions_HQ"
+PROTEIN_GOTERM_LOC = f"{DATA_PATH}/deepfri_predictions_protein_HQ"
 
 start_time = time.time()
 GOTERMS_NAME = pd.read_csv(
-    "/mnt/data/gonames.csv", index_col=0
+    f"{DATA_PATH}/gonames.csv", index_col=0
 ).rename(columns={"index": "GOterm"})
 logger.info(f"Loading GO terms names took {time.time() - start_time:.2f}s")
 
 start_time = time.time()
 REPRESENTATIVE_MAPPING = pd.read_parquet(
-    "/mnt/data/all_clusters_nf.parquet"
+    f"{DATA_PATH}/all_clusters_nf.parquet"
 )
 logger.info(f"Loading representative mapping took {time.time() - start_time:.2f}s")
 REPRESENTATIVE_MAPPING["Protein"] = REPRESENTATIVE_MAPPING["Protein"].map(lambda x: json.loads(x))
@@ -114,7 +119,7 @@ app.add_middleware(
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter()
 
 def get_initial_points():
     start_time = time.time()
