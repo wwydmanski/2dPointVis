@@ -6,6 +6,7 @@ services:
     container_name: point_vis_backend
     environment:
       - DATA_PATH=${DATA_PATH}
+      - DATA_WEBSERVER_PATH=${DATA_WEBSERVER_PATH}
     volumes:
       - ./backend:/app
       - ${DATA_PATH:-./data}:/mnt/data

@@ -23,9 +23,14 @@ DATA_PATH = os.environ.get("DATA_PATH")
 if not DATA_PATH:
     raise RuntimeError("DATA_PATH environment variable is not set")
 
+# Read DATA_WEBSERVER_PATH from environment variable
+DATA_WEBSERVER_PATH = os.environ.get("DATA_WEBSERVER_PATH")
+if not DATA_WEBSERVER_PATH:
+    raise RuntimeError("DATA_WEBSERVER_PATH environment variable is not set")
+
 start_time = time.time()
 DATA_FULL = pd.read_parquet(
-    f"{DATA_PATH}/data.parquet"
+    f"{DATA_WEBSERVER_PATH}/data.parquet"
 ).drop(columns=["afdb_hq"])
 DATA_FULL["protein"] = list(DATA_FULL.index)
 DATA = DATA_FULL.dropna(subset=["x", "y"])
@@ -47,18 +52,18 @@ DATA["clean_name"] = DATA["protein"].str.replace("AF-", "").str.replace("-model_
 DATA["representative"] = DATA["clean_name"]
 
 PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
-GOTERM_LOC = f"{DATA_PATH}/deepfri_predictions_HQ"
-PROTEIN_GOTERM_LOC = f"{DATA_PATH}/deepfri_predictions_protein_HQ"
+GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
+PROTEIN_GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_protein_HQ"
 
 start_time = time.time()
 GOTERMS_NAME = pd.read_csv(
-    f"{DATA_PATH}/gonames.csv", index_col=0
+    f"{DATA_WEBSERVER_PATH}/gonames.csv", index_col=0
 ).rename(columns={"index": "GOterm"})
 logger.info(f"Loading GO terms names took {time.time() - start_time:.2f}s")
 
 start_time = time.time()
 REPRESENTATIVE_MAPPING = pd.read_parquet(
-    f"{DATA_PATH}/all_clusters_nf.parquet"
+    f"{DATA_WEBSERVER_PATH}/all_clusters_nf.parquet"
 )
 logger.info(f"Loading representative mapping took {time.time() - start_time:.2f}s")
 REPRESENTATIVE_MAPPING["Protein"] = REPRESENTATIVE_MAPPING["Protein"].map(lambda x: json.loads(x))
