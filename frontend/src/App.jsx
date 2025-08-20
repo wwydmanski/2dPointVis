@@ -36,8 +36,8 @@ function App() {
 
   // Update this useEffect to fetch GO term details when a protein is selected
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
-    ? DJANGO_HOST
-    : window.location.origin;
+    ? DJANGO_HOST + "/api"
+    : window.location.origin + "/api";
 
   React.useEffect(() => {
     if (data && data.protein) {
