@@ -13,7 +13,8 @@ const Search = ({
     selectedItem,
     autocomplete,
     setAutocomplete,
-    onClick
+    onClick,
+    host
 }: {
     selectionMode: any,
     setSelectionMode: (mode: any) => void,
@@ -25,10 +26,11 @@ const Search = ({
     selectedItem: any,
     autocomplete: any[],
     setAutocomplete: (data: any[]) => void,
-    onClick: (item: any) => void
+    onClick: (item: any) => void,
+    host: string
 } ) => {
-    const nameSearchUrl = `${DJANGO_HOST}/name_search`;
-    const goTermSearchUrl = `${DJANGO_HOST}/goterm_autocomplete`;
+    const nameSearchUrl = `${host}/name_search`;
+    const goTermSearchUrl = `${host}/goterm_autocomplete`;
 
     return(
         <Fade in={true} timeout={800}>

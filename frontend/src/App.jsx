@@ -161,6 +161,7 @@ function App() {
             selectionMode={selectionMode}
             selectedGoTermValue={selectedGoTermValue}
             setSelectedGoTermValue={setSelectedGoTermValue}
+            host={host}
           />
 
           {/* Info Box & Proteins in Cluster */}
@@ -173,6 +174,7 @@ function App() {
                   name={name}
                   type={type}
                   data={data}
+                  host={host}
                   renderProtein={renderProtein}
                   selectedNonRepresentative={selectedNonRepresentative}
                   setSelectedNonRepresentative={setSelectedNonRepresentative}
