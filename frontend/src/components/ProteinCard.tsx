@@ -46,7 +46,7 @@ const ProteinCard = (
                         fetch(`${host}/pdb_loc/${nameToDownload}`)
                             .then(res => res.json())
                             .then(pdb_loc => {
-                            const url = `${DJANGO_HOST}/pdb/${pdb_loc}`;
+                            const url = `${host}/pdb/${pdb_loc}`;
 
                             const fname = pdb_loc.split("/")[pdb_loc.split("/").length - 1];
 
