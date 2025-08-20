@@ -135,8 +135,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       .filter(d => (d.afdb_pLDDT >= pLDDT[0] && d.afdb_pLDDT <= pLDDT[1]) || d.afdb_pLDDT === -1)
       .filter(d => supercog.includes(d.superCOG_v10))
       .filter(d => taxonomy.includes(d.taxonomy))
+      .filter(d => selectedType.includes(d.origin))
       .map(element => ({ ...element, id: element.clean_name }));
-    
     setViewableData(filteredData);
   }, [currentData, lengthRange, pLDDT, supercog, taxonomy]);
 
