@@ -124,8 +124,6 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       setPendingZoomIndex(null);
     }
 
-    // Hide loading indicator after graph is rendered
-    // setIsLoading(false);
   }, [viewableData]);
   
   // Filter current data based on filter parameters
@@ -140,7 +138,6 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       .map(element => ({ ...element, id: element.clean_name }));
     
     setViewableData(filteredData);
-    setIsLoading(false);
   }, [currentData, lengthRange, pLDDT, supercog, taxonomy]);
 
   // Debounced server request function
@@ -234,6 +231,9 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
           break;
 
         case 'update':
+          if(data.is_last) {
+            setIsLoading(false);
+          }
           setStreamingData(prev => [...prev, ...data.points]);
           break;
 
