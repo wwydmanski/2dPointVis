@@ -124,7 +124,7 @@ app.add_middleware(
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-api_router = APIRouter()
+api_router = APIRouter(prefix="/api")
 
 def get_initial_points():
     start_time = time.time()

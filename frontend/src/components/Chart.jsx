@@ -43,7 +43,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   : window.location.host;
 
   const { sendMessage, lastMessage } = useWebSocket(
-    `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${host}/ws/points`,
+    `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${host}/api/ws/points`,
     {
       shouldReconnect: (closeEvent) => true,
       reconnectInterval: 3000,
