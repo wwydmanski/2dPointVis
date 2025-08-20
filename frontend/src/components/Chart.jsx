@@ -245,7 +245,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
         : streamingData;
 
       setCurrentData(combinedData);
-      if(foundItem && graphInstanceRef.current && graphInstanceRef.current.getSelectedIndices().length > 0) {
+      if(foundItem && graphInstanceRef.current && (graphInstanceRef.current.getSelectedIndices()?.length ?? 0) > 0 && backgroundData && streamingData) {
         const index = (!goTerm && !aspect) ? backgroundData.length : streamingData.length
         graphInstanceRef.current.selectPointByIndex(index);
       }
