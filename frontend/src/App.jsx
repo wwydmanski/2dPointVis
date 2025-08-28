@@ -199,6 +199,7 @@ function App() {
                   currentGoTermProtein={currentGoTermProtein}
                   selectedNonRepresentative={selectedNonRepresentative}
                   setSelectedNonRepresentative={setSelectedNonRepresentative}
+                  setSelectedGoTermValue={setSelectedGoTermValue}
                   host={host}
                 />
               )}
