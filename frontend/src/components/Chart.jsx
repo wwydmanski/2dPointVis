@@ -206,6 +206,12 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     }
   },[foundItem])
 
+  useEffect(() => {
+    if(goTerm && graphInstanceRef.current && viewableData) {
+      graphInstanceRef.current.unselectPoints();
+    }
+  }, [goTerm]);
+
   // Clean up debounce on unmount
   useEffect(() => {
     return () => {
