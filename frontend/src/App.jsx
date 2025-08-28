@@ -197,9 +197,10 @@ function App() {
                 <GoTermDetails
                   goTermDetails={goTermDetails}
                   currentGoTermProtein={currentGoTermProtein}
-                  selectedNonRepresentative={selectedNonRepresentative}
-                  setSelectedNonRepresentative={setSelectedNonRepresentative}
                   setSelectedGoTermValue={setSelectedGoTermValue}
+                  setGoTerm={setGoTerm}
+                  setAspect={setAspect}
+                  setSelectionMode={setSelectionMode}
                   host={host}
                 />
               )}
