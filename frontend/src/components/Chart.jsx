@@ -10,7 +10,6 @@ import graphConfig from '../utils/graphConfig';
 export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem }) {
   // Main state
   const [currentData, setCurrentData] = useState(undefined);
-  const [viewableData, setViewableData] = useState(undefined);
   const [visible, setVisible] = useState({
     x: { min: -20, max: 20 },
     y: { min: -30, max: 20 }
@@ -36,7 +35,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const graphRef = useRef();
   const graphInstanceRef = useRef(null);
   const lastProcessedMessageRef = useRef(null);
-  const prevViewableDataRef = useRef();
+  const prevCurrentDataRef = useRef();
 
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
   ? DJANGO_HOST.replace("http://", "").replace("https://", "")
@@ -55,11 +54,18 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const handleNodeClick = (index, data) => {
     if (!graphInstanceRef.current) return;
     graphInstanceRef.current.unselectPoints();
+    const nextSizes = currentData.map((_) => 3);
     if (index !== undefined && data) {
       const node = data[index];
       graphInstanceRef.current.selectPointByIndex(index);
       selectionCallback(node);
+      nextSizes[index] = 12;
     }
+    if(index === undefined) {
+      selectionCallback(null);
+    }
+    graphInstanceRef.current.setPointSizes(nextSizes);
+    graphInstanceRef.current.render();
   };
 
   const zoomCallback = useCallback((zoomEvent) => {
@@ -97,47 +103,44 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const [pendingZoomIndex, setPendingZoomIndex] = useState(null);
   const [hasInitialZoomed, setHasInitialZoomed] = useState(false);
 
-  useEffect(() => {
-    if (!graphInstanceRef.current || !viewableData) return;
+  const showPoint = (point, lengthRange, pLDDT, supercog, taxonomy) => {
+    return point.length >= lengthRange[0] && point.length <= lengthRange[1] &&
+      ((point.afdb_pLDDT >= pLDDT[0] && point.afdb_pLDDT <= pLDDT[1]) || point.afdb_pLDDT === -1) &&
+      supercog.includes(point.superCOG_v10) &&
+      taxonomy.includes(point.taxonomy) &&
+      selectedType.includes(point.origin)
+  }
 
-    const pointPositions = viewableData.map(d => [d.x, d.y]).flat();
-    const pointColors = viewableData.map(element => 
-      hexToRgba(element.color || colorMap[element.origin] || "#888888")
-    ).flat();
+  useEffect(() => {
+    if (!graphInstanceRef.current || !currentData) return;
+
+    const pointPositions = currentData.map(d => [d.x, d.y]).flat();
+    const pointColors = currentData.map(element => {
+      if(showPoint(element, lengthRange, pLDDT, supercog, taxonomy)) {
+        return hexToRgba(element.color || colorMap[element.origin] || "#888888")
+      }
+      return hexToRgba("#424052")
+    }).flat();
 
     graphInstanceRef.current.setPointPositions(pointPositions);
     graphInstanceRef.current.setPointColors(pointColors);
-    graphInstanceRef.current.config.onClick = (index => handleNodeClick(index, viewableData));
+    graphInstanceRef.current.config.onClick = (index => handleNodeClick(index, currentData));
 
     // Only zoom out on very first dataset render
-    if (!hasInitialZoomed && viewableData.length > 0) {
+    if (!hasInitialZoomed && currentData.length > 0) {
       setHasInitialZoomed(true);
     }
 
     graphInstanceRef.current.render();
-    prevViewableDataRef.current = viewableData;
+    prevCurrentDataRef.current = currentData;
 
     // Zoom to pending index if set
-    if (pendingZoomIndex !== null && viewableData[pendingZoomIndex]) {
+    if (pendingZoomIndex !== null && currentData[pendingZoomIndex]) {
       graphInstanceRef.current.zoomToPointByIndex(pendingZoomIndex, 700, 100);
       graphInstanceRef.current.selectPointByIndex(pendingZoomIndex);
       setPendingZoomIndex(null);
     }
 
-  }, [viewableData]);
-  
-  // Filter current data based on filter parameters
-  useEffect(() => {
-    if (!currentData) return;
-    
-    const filteredData = currentData
-      .filter(d => d.length >= lengthRange[0] && d.length <= lengthRange[1])
-      .filter(d => (d.afdb_pLDDT >= pLDDT[0] && d.afdb_pLDDT <= pLDDT[1]) || d.afdb_pLDDT === -1)
-      .filter(d => supercog.includes(d.superCOG_v10))
-      .filter(d => taxonomy.includes(d.taxonomy))
-      .filter(d => selectedType.includes(d.origin))
-      .map(element => ({ ...element, id: element.clean_name }));
-    setViewableData(filteredData);
   }, [currentData, lengthRange, pLDDT, supercog, taxonomy]);
 
   // Debounced server request function
@@ -195,19 +198,23 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   ]);
 
   useEffect(() => {
-    if(foundItem && graphInstanceRef.current && viewableData) {
+    if(foundItem && graphInstanceRef.current && currentData) {
       graphInstanceRef.current.unselectPoints();
+      const nextSizes = currentData.map((_) => 3);
       selectionCallback(foundItem);
-      viewableData.forEach((item, index) => {
+      currentData.forEach((item, index) => {
         if (item["clean_name"] === foundItem["clean_name"]) {
           graphInstanceRef.current.selectPointByIndex(index);
+          nextSizes[index] = 12;
         }
       });
+      graphInstanceRef.current.setPointSizes(nextSizes);
+      graphInstanceRef.current.render();
     }
   },[foundItem])
 
   useEffect(() => {
-    if(goTerm && graphInstanceRef.current && viewableData) {
+    if(goTerm && graphInstanceRef.current && currentData) {
       graphInstanceRef.current.unselectPoints();
     }
   }, [goTerm]);
@@ -240,7 +247,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
           if(data.is_last) {
             setIsLoading(false);
           }
-          setStreamingData(prev => [...prev, ...data.points]);
+          setStreamingData(prev => [...data.points, ...prev]);
           break;
 
         case 'error':
@@ -254,21 +261,25 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
         ? [...backgroundData, ...streamingData]
         : streamingData;
 
-      setCurrentData(combinedData);
       if(foundItem && graphInstanceRef.current && (graphInstanceRef.current.getSelectedIndices()?.length ?? 0) > 0 && backgroundData && streamingData) {
-        const index = (!goTerm && !aspect) ? backgroundData.length : streamingData.length
+        combinedData.push(foundItem)
+        const index = combinedData.length - 1
+        const nextSizes = combinedData.map((_) => 3);
         graphInstanceRef.current.selectPointByIndex(index);
+        nextSizes[index] = 12;
+        graphInstanceRef.current.setPointSizes(nextSizes);
+        graphInstanceRef.current.render();
       }
+      setCurrentData(combinedData.map(element => ({ ...element, id: element.clean_name })));
     } catch (error) {
       console.error('Error parsing WebSocket message:', error);
     }
-  }, [lastMessage, backgroundData, streamingData, goTerm, aspect, setIsLoading]);
+  }, [lastMessage]);
 
   // Reset streaming data when filters change
   useEffect(() => {
-    const resetData = foundItem ? [foundItem] : [];
-    setStreamingData(resetData);
-  }, [goTerm, aspect, viewportChanged]);
+    setStreamingData([]);
+  }, [goTerm, aspect, viewportChanged, goTerm, aspect, setIsLoading]);
 
   // Initial data fetch
   useEffect(() => {
@@ -276,9 +287,9 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   }, [sendMessage]);
 
   useEffect(() => {
-    if(zoomedItem && graphInstanceRef.current && viewableData) {
+    if(zoomedItem && graphInstanceRef.current && currentData) {
       let found = false;
-      viewableData.forEach((item, index) => {
+      currentData.forEach((item, index) => {
         if (item["clean_name"] === zoomedItem["clean_name"]) {
           graphInstanceRef.current.zoomToPointByIndex(index, 700, 100);
           graphInstanceRef.current.selectPointByIndex(index);
