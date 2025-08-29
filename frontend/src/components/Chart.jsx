@@ -119,7 +119,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       if(showPoint(element, lengthRange, pLDDT, supercog, taxonomy)) {
         return hexToRgba(element.color || colorMap[element.origin] || "#888888")
       }
-      return hexToRgba("#424052")
+      return hexToRgba(colorMap["filtered out"])
     }).flat();
 
     graphInstanceRef.current.setPointPositions(pointPositions);

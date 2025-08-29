@@ -54,5 +54,6 @@ export const colorMap = {
   "AFDB light clusters": "#4aa3ff",
   "ESMAtlas clusters": "#2ca02c",
   "MIP clusters": "#d62728",
-  "MIP singletons": "#ff9999"
+  "MIP singletons": "#ff9999",
+  "filtered out": "#424052"
 }
