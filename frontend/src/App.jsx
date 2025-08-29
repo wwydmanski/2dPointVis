@@ -62,7 +62,11 @@ function App() {
   }, [data, selectedNonRepresentative]); // Now triggered when data changes
 
   function onClick(datum) {
-    if (datum === null || datum === undefined) return;
+    if (datum === null || datum === undefined) {
+      setSelectedItem(null)
+      setData(null)
+      return
+    }
 
     fetch(`${host}/name_search?name=${datum.protein}`)
       .then(res => res.json())
