@@ -306,7 +306,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       }
     }
   }, [zoomedItem]);
-  
+
   return (
     <div id="chart" style={{ width: "100%", height: "100vh", position: "absolute", top: 0, left: 0, overflow: "hidden" }} ref={graphRef} />
   );

@@ -6,32 +6,31 @@ declare global {
     }
 }
 
-export default function renderProtein(pdb_loc: string) {
+export default function renderProtein(pdb_loc?: string) {
+    const viewerDom = document.getElementById('viewer-dom');
+
     let host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
         ? DJANGO_HOST
         : window.location.origin;
+    
     if (!host.endsWith("/api")) {
         host = host.replace(/\/$/, "") + "/api";
+    }
+    
+    const options = {
+        customData: {
+            url: `${host}/pdb/${pdb_loc}`,
+            format: 'pdb',
+        },
+        bgColor: 'white',
+        alphafoldView: true,
     }
 
     if (!window.viewer) {
         // @ts-ignore
         window.viewer = new PDBeMolstarPlugin();
-        window.viewer.render(document.getElementById('viewer-dom'), {
-            customData: {
-                url: `${host}/pdb/${pdb_loc}`,
-                format: 'pdb',
-            },
-            bgColor: 'white',
-            alphafoldView: true,
-        });
+        window.viewer.render(viewerDom, options);
     } else {
-        window.viewer.load({
-            customData: {
-                url: `${host}/pdb/${pdb_loc}`,
-                format: 'pdb',
-            },
-            alphafoldView: true,
-        });
+        window.viewer.visual.update(options);
     }
 }

@@ -27,7 +27,6 @@ const ProteinsInClusterCard = (
             height: "100%"
             }}>
             {data.others.map((protein: any) => {
-                console.log("Protein: ", protein);
                 return (
                 <Box
                     key={protein.name}
