@@ -11,7 +11,7 @@ import ProteinCard from './components/ProteinCard';
 import ProteinsInClusterCard from './components/ProteinsInClusterCard';
 import GoTermDetails from './components/GoTermDetails';
 import Filters from './components/Filters';
-import GithubCard from './components/GithubCard';
+import BottomMenu from './components/BottomMenu';
 import { theme } from './utils/theme';
 import { set } from 'lodash';
 
@@ -105,9 +105,6 @@ function App() {
   }
 
   let type = SOURCE_MAPPING[data?.origin];
-
-  console.log("Current goterm protein: ", currentGoTermProtein);
-  console.log("Selected non representative: ", selectedNonRepresentative);
 
   return (
     <ThemeProvider theme={theme}>
@@ -244,7 +241,7 @@ function App() {
         />
 
         {/* GitHub Repository Link - Small Card */}
-        <GithubCard />
+        <BottomMenu />
       </Box >
     </ThemeProvider >
   )
