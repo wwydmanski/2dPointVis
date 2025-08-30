@@ -97,7 +97,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
         graphInstanceRef.current = null;
       }
     };
-  }, [zoomCallback]);
+  }, []);
   
   // Handle data visualization updates
   const [pendingZoomIndex, setPendingZoomIndex] = useState(null);
