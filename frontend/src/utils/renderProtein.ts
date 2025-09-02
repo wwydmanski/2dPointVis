@@ -27,10 +27,16 @@ export default function renderProtein(pdb_loc?: string) {
     }
 
     if (!window.viewer) {
+        if(!pdb_loc) return
         // @ts-ignore
         window.viewer = new PDBeMolstarPlugin();
         window.viewer.render(viewerDom, options);
     } else {
-        window.viewer.visual.update(options);
+        if(!pdb_loc) {
+            window.viewer.clear()
+        }
+        else {
+            window.viewer.visual.update(options);
+        }
     }
 }

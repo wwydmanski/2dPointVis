@@ -59,7 +59,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       const node = data[index];
       graphInstanceRef.current.selectPointByIndex(index);
       selectionCallback(node);
-      nextSizes[index] = 12;
+      nextSizes[index] = 9;
     }
     if(index === undefined) {
       selectionCallback(null);
@@ -205,7 +205,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       currentData.forEach((item, index) => {
         if (item["clean_name"] === foundItem["clean_name"]) {
           graphInstanceRef.current.selectPointByIndex(index);
-          nextSizes[index] = 12;
+          nextSizes[index] = 9;
         }
       });
       graphInstanceRef.current.setPointSizes(nextSizes);
@@ -226,10 +226,6 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     };
   }, [debouncedSendMessage]);
 
-  function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
   // Process WebSocket messages
   useEffect(() => {
     if (!lastMessage || lastProcessedMessageRef.current === lastMessage.data) return;
@@ -237,6 +233,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     lastProcessedMessageRef.current = lastMessage.data;
     try {
       const data = JSON.parse(lastMessage.data);
+      let tempNewStreamingData = [];
       
       switch (data.type) {
         case 'init':
@@ -247,6 +244,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
           if(data.is_last) {
             setIsLoading(false);
           }
+          tempNewStreamingData = [...data.points, ...streamingData]
           setStreamingData(prev => [...data.points, ...prev]);
           break;
 
@@ -258,15 +256,15 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
       // Combine data based on whether we're filtering by GO terms
       const combinedData = (!goTerm && !aspect) 
-        ? [...backgroundData, ...streamingData]
-        : streamingData;
+        ? [...backgroundData, ...tempNewStreamingData]
+        : tempNewStreamingData;
 
-      if(foundItem && graphInstanceRef.current && (graphInstanceRef.current.getSelectedIndices()?.length ?? 0) > 0 && backgroundData && streamingData) {
+      if(foundItem && graphInstanceRef.current && (graphInstanceRef.current.getSelectedIndices()?.length ?? 0) > 0 && backgroundData && tempNewStreamingData) {
         combinedData.push(foundItem)
         const index = combinedData.length - 1
         const nextSizes = combinedData.map((_) => 3);
         graphInstanceRef.current.selectPointByIndex(index);
-        nextSizes[index] = 12;
+        nextSizes[index] = 9;
         graphInstanceRef.current.setPointSizes(nextSizes);
         graphInstanceRef.current.render();
       }

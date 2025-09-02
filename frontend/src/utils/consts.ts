@@ -55,5 +55,5 @@ export const colorMap = {
   "ESMAtlas clusters": "#2ca02c",
   "MIP clusters": "#d62728",
   "MIP singletons": "#ff9999",
-  "filtered out": "#424052"
+  "filtered out": "#58556eff"
 }

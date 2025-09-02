@@ -13,7 +13,7 @@ const ProteinsInClusterCard = (
 ) => {
     return (
         <Card sx={{
-            overflow: "hidden",
+            overflow: "scroll",
             borderRadius: "10px",
             zIndex: 1,
             padding: "10px",
@@ -23,8 +23,7 @@ const ProteinsInClusterCard = (
             Proteins in cluster
             </Typography>
             <Box sx={{
-            overflowY: "scroll",
-            height: "100%"
+            overflowY: "scroll"
             }}>
             {data.others.map((protein: any) => {
                 return (

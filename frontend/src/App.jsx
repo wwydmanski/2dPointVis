@@ -65,6 +65,7 @@ function App() {
     if (datum === null || datum === undefined) {
       setSelectedItem(null)
       setData(null)
+      renderProtein(null)
       return
     }
 
@@ -169,7 +170,7 @@ function App() {
           <Fade in={true} timeout={1000}>
             <Stack direction="column" spacing={2} sx={{ mb: 2 }}>
               {/* Row with Representative Protein and Proteins in Cluster cards */}
-              <Stack direction="row" spacing={2} sx={{ mx: 1 }} style={{ width: "600px"}}>
+              <Stack direction="row" spacing={2} sx={{ mx: 1, maxHeight: 270 }} style={{ width: "600px"}}>
                 {/* Representative Protein Card */}
                 <ProteinCard
                   name={name}
