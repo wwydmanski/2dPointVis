@@ -37,11 +37,8 @@ const MoreButton = () => {
                 aria-describedby="modal-modal-description"
             >
                 <Box sx={modalBoxStyle}>
-                    <Typography id="modal-modal-title" variant="h6" component="h2">
-                        Title
-                    </Typography>
                     <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                        Lorem Ipsum
+                        Have feedback or found a problem? <br/>We’d love to hear from you at: p.szczerbiak@sanoscience.org
                     </Typography>
                 </Box>
             </Modal> : null}
@@ -59,11 +56,12 @@ const MoreButton = () => {
                         handleClose()
                     }} 
                 >
+                    <Typography style={{ marginRight: "8px", fontSize: 20 }}>@</Typography>
                     <Typography 
                         variant="body2" 
                         fontWeight="medium"
                     >
-                        About
+                        Feedback
                     </Typography>
                 </MenuItem>
                 <MenuItem>

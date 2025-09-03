@@ -32,14 +32,16 @@ const Legend = () => {
             >
                 {Object.keys(colorMap).map((name, index) => 
                     <MenuItem key={index+name} onClick={handleClose}>
-                        {name}
-                        <span style={{
-                            backgroundColor: colorMap[name],
-                            width: 20,
-                            height: 20,
-                            marginLeft: 10,
-                            borderRadius: 4
-                        }}/>
+                        <div style={{display: 'flex', justifyContent: 'space-between', width: "100%"}}>
+                            <span>{name}</span>
+                            <span style={{
+                                backgroundColor: colorMap[name],
+                                width: 20,
+                                height: 20,
+                                marginLeft: 10,
+                                borderRadius: 4
+                            }}/>
+                        </div>
                     </MenuItem>
                 )}
             </Menu>
