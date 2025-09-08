@@ -126,10 +126,10 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 api_router = APIRouter(prefix="/api")
 
-def get_initial_points(goTerm = None):
+def get_initial_points(goTerm = None, ontology = None):
     start_time = time.time()
-    if goTerm:
-        subset_orig = get_points(goterm = goTerm, number_of_points = 10000)
+    if goTerm and ontology:
+        subset_orig = get_points(goterm = goTerm, ontology = ontology, number_of_points = 10000)
     else:
         subset_orig = DATA.sample(10000, random_state=42).to_dict(orient="records")
     logger.info(f"Initial points sampling took {time.time() - start_time:.2f}s")
@@ -368,7 +368,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if data.get("type") == "init":
                 # Handle initial data load - these points stay permanently
-                points = get_initial_points(goTerm = data.get("goTerm", None))
+                points = get_initial_points(goTerm = data.get("goTerm", None), ontology=data.get("ontology", None))
                 await websocket.send_json(
                     {
                         "type": "init",
