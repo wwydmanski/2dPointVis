@@ -141,8 +141,6 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       setPendingZoomIndex(null);
     }
 
-    console.log(currentData)
-
   }, [currentData, lengthRange, pLDDT, supercog, taxonomy]);
 
   // Debounced server request function

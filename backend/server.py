@@ -131,9 +131,9 @@ def get_initial_points(goTerm = None):
     if goTerm:
         subset_orig = get_points(goterm = goTerm, number_of_points = 10000)
     else:
-        subset_orig = DATA.sample(10000, random_state=42)
+        subset_orig = DATA.sample(10000, random_state=42).to_dict(orient="records")
     logger.info(f"Initial points sampling took {time.time() - start_time:.2f}s")
-    return subset_orig.to_dict(orient="records")
+    return subset_orig
 
 
 def get_points(
