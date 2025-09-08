@@ -37,6 +37,20 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const lastProcessedMessageRef = useRef(null);
   const prevCurrentDataRef = useRef();
 
+  const emptyMessage = {
+      x0: visible.x.min,
+      x1: visible.x.max,
+      y0: visible.y.min,
+      y1: visible.y.max,
+      types: selectedType,
+      lengthRange,
+      pLDDT,
+      supercog,
+      goTerm,
+      ontology: aspect,
+      taxonomy
+    };
+
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
   ? DJANGO_HOST.replace("http://", "").replace("https://", "")
   : window.location.host;
@@ -166,22 +180,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       taxonomy !== previousFilters.taxonomy;
     
     if (!viewportChanged && !filtersChanged) return;
-    
-    const message = {
-      x0: visible.x.min,
-      x1: visible.x.max,
-      y0: visible.y.min,
-      y1: visible.y.max,
-      types: selectedType,
-      lengthRange,
-      pLDDT,
-      supercog,
-      goTerm,
-      ontology: aspect,
-      taxonomy
-    };
 
-    debouncedSendMessage(JSON.stringify(message));
+    debouncedSendMessage(JSON.stringify(emptyMessage));
     setViewportChanged(false);
     setPreviousFilters({
       selectedType,
@@ -279,7 +279,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
   // Initial data fetch
   useEffect(() => {
-    const message = goTerm ? { type: 'init', goTerm: goTerm } : { type: 'init' }
+    const message = {...emptyMessage, type: "init"}
     sendMessage(JSON.stringify(message));
   }, [sendMessage, goTerm]);
 
