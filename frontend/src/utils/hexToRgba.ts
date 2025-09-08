@@ -1,4 +1,4 @@
-const hexToRgba = (hex: string) => {
+const hexToRgba = (hex: string, opacity = 1.0) => {
     hex = hex.replace(/^#/, '');
 
     let r, g, b, a = 1;
@@ -19,6 +19,10 @@ const hexToRgba = (hex: string) => {
     } else {
         console.error('Invalid hex color format:', hex);
         return [0, 0, 0, 1];
+    }
+
+    if(opacity) {
+        a = opacity;
     }
 
     return [r, g, b, a];

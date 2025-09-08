@@ -81,7 +81,6 @@ function App() {
         setSelectedItem(datum);
       })
       
-      // renderProtein(datum.pdb_loc);
       fetch(`${host}/pdb_loc/${datum.protein}`)
         .then(res => res.json())
         .then(pdb_loc => {

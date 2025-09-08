@@ -37,9 +37,21 @@ const MoreButton = () => {
                 aria-describedby="modal-modal-description"
             >
                 <Box sx={modalBoxStyle}>
-                    <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                        Have feedback or found a problem? <br/>We’d love to hear from you at: p.szczerbiak@sanoscience.org
+                    <Typography variant="h6" id="modal-modal-description" sx={{ mb: 2 }}>
+                        Have feedback or found a problem?
                     </Typography>
+                    <Typography variant="body2">
+                        We’d love to hear from you at:
+                    </Typography>
+                    <Link 
+                        to='#'
+                        onClick={(e) => {
+                            window.location.href = "mailto:p.szczerbiak@sanoscience.org";
+                            e.preventDefault();}
+                        }
+                    >
+                        p.szczerbiak@sanoscience.org
+                    </Link>
                 </Box>
             </Modal> : null}
             <Button onClick={handleClick}>

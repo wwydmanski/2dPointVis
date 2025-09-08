@@ -133,7 +133,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       if(showPoint(element, lengthRange, pLDDT, supercog, taxonomy)) {
         return hexToRgba(element.color || colorMap[element.origin] || "#888888")
       }
-      return hexToRgba(colorMap["filtered out"])
+      return hexToRgba(colorMap["filtered out"], 0.15)
     }).flat();
 
     graphInstanceRef.current.setPointPositions(pointPositions);
@@ -216,6 +216,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   useEffect(() => {
     if(goTerm && graphInstanceRef.current && currentData) {
       graphInstanceRef.current.unselectPoints();
+      selectionCallback(null);
     }
   }, [goTerm]);
 
@@ -279,7 +280,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
   // Initial data fetch
   useEffect(() => {
-    const message = {...emptyMessage, type: "init"}
+    const message = {...emptyMessage, type: "init", x0: -20, x1: 20, y0: -30, y1: 30}
     sendMessage(JSON.stringify(message));
   }, [sendMessage, goTerm]);
 
