@@ -126,9 +126,12 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 api_router = APIRouter(prefix="/api")
 
-def get_initial_points():
+def get_initial_points(goTerm = None):
     start_time = time.time()
-    subset_orig = DATA.sample(10000, random_state=42)
+    if goTerm:
+        subset_orig = get_points(goterm = goTerm, number_of_points = 10000)
+    else:
+        subset_orig = DATA.sample(10000, random_state=42)
     logger.info(f"Initial points sampling took {time.time() - start_time:.2f}s")
     return subset_orig.to_dict(orient="records")
 
@@ -144,7 +147,8 @@ def get_points(
     supercog: str = "",
     goterm: str = "",
     ontology: str="",
-    taxonomy: str=""
+    taxonomy: str="",
+    number_of_points: int = 1000
 ):
     total_start_time = time.time()
     conditions = []
@@ -212,9 +216,8 @@ def get_points(
     subset = DATA[mask]
     logger.info(f"Initial spatial filtering took {time.time() - filter_start_time:.2f}s")
     
-    if len(subset) > 1000:
-        # get only top 1000
-        subset = subset[:1000]
+    if len(subset) > number_of_points:
+        subset = subset[:number_of_points]
         
     logger.info(f"Total get_points processing took {time.time() - total_start_time:.2f}s with {len(subset)} results")
     return subset.to_dict(orient="records")
@@ -365,7 +368,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if data.get("type") == "init":
                 # Handle initial data load - these points stay permanently
-                points = get_initial_points()
+                points = get_initial_points(goTerm = data.get("goTerm", None))
                 await websocket.send_json(
                     {
                         "type": "init",

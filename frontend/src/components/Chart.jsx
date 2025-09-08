@@ -141,6 +141,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       setPendingZoomIndex(null);
     }
 
+    console.log(currentData)
+
   }, [currentData, lengthRange, pLDDT, supercog, taxonomy]);
 
   // Debounced server request function
@@ -255,9 +257,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       }
 
       // Combine data based on whether we're filtering by GO terms
-      const combinedData = (!goTerm && !aspect) 
-        ? [...backgroundData, ...tempNewStreamingData]
-        : tempNewStreamingData;
+      const combinedData = [...backgroundData, ...tempNewStreamingData]
 
       if(foundItem && graphInstanceRef.current && (graphInstanceRef.current.getSelectedIndices()?.length ?? 0) > 0 && backgroundData && tempNewStreamingData) {
         combinedData.push(foundItem)
@@ -281,8 +281,9 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
   // Initial data fetch
   useEffect(() => {
-    sendMessage(JSON.stringify({ type: 'init' }));
-  }, [sendMessage]);
+    const message = goTerm ? { type: 'init', goTerm: goTerm } : { type: 'init' }
+    sendMessage(JSON.stringify(message));
+  }, [sendMessage, goTerm]);
 
   useEffect(() => {
     if(zoomedItem && graphInstanceRef.current && currentData) {
