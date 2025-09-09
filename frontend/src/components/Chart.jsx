@@ -304,8 +304,9 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
             "Content-Type": "application/json",
           },
         })
-        console.log(result.json())
-        setGoTermFilter(result.json())
+        const parsedResult = await result.json()
+        console.log(parsedResult)
+        setGoTermFilter(parsedResult)
       }
       fetchGotermFilter()
     }
