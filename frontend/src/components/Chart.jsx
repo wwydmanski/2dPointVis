@@ -283,7 +283,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   // Reset streaming data when filters change
   useEffect(() => {
     setStreamingData([]);
-  }, [goTerm, aspect, viewportChanged, goTerm, aspect, setIsLoading]);
+  }, [goTerm, aspect, viewportChanged, aspect, setIsLoading]);
 
   // Initial data fetch
   useEffect(() => {
@@ -307,6 +307,9 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
         setGoTermFilter(result)
       }
       fetchGotermFilter()
+    }
+    else {
+      setGoTermFilter(backgroundData.map(_ => true));
     }
   }, [goTerm, aspect]);
 
