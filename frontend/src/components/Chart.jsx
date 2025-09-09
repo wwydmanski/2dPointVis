@@ -293,7 +293,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   useEffect(() => {
     if(goTerm && aspect) {
       async function fetchGotermFilter() {
-        result = await fetch(`${apiHost}/goterm`, {
+        const result = await fetch(`${apiHost}/goterm`, {
           method: 'POST',
           body: JSON.stringify({
             goterm: goTerm,
