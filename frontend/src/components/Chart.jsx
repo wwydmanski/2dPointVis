@@ -17,6 +17,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   
   // Data fetching state
   const [backgroundData, setBackgroundData] = useState([]);
+  const [goTermFilter, setGoTermFilter] = useState([]);
   const [streamingData, setStreamingData] = useState([]);
   
   // Tracking state for preventing unnecessary re-fetching
@@ -54,6 +55,10 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
   ? DJANGO_HOST.replace("http://", "").replace("https://", "")
   : window.location.host;
+
+  const apiHost = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
+      ? DJANGO_HOST + "/api"
+      : window.location.origin + "/api";
 
   const { sendMessage, lastMessage } = useWebSocket(
     `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${host}/api/ws/points`,
@@ -117,20 +122,21 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const [pendingZoomIndex, setPendingZoomIndex] = useState(null);
   const [hasInitialZoomed, setHasInitialZoomed] = useState(false);
 
-  const showPoint = (point, lengthRange, pLDDT, supercog, taxonomy) => {
+  const showPoint = (point, lengthRange, pLDDT, supercog, taxonomy, index) => {
     return point.length >= lengthRange[0] && point.length <= lengthRange[1] &&
       ((point.afdb_pLDDT >= pLDDT[0] && point.afdb_pLDDT <= pLDDT[1]) || point.afdb_pLDDT === -1) &&
       supercog.includes(point.superCOG_v10) &&
       taxonomy.includes(point.taxonomy) &&
-      selectedType.includes(point.origin)
+      selectedType.includes(point.origin) &&
+      ((index < goTermFilter.length && goTermFilter[index]) || index >= goTermFilter.length)
   }
 
   useEffect(() => {
     if (!graphInstanceRef.current || !currentData) return;
 
     const pointPositions = currentData.map(d => [d.x, d.y]).flat();
-    const pointColors = currentData.map(element => {
-      if(showPoint(element, lengthRange, pLDDT, supercog, taxonomy)) {
+    const pointColors = currentData.map((element, index) => {
+      if(showPoint(element, lengthRange, pLDDT, supercog, taxonomy, index)) {
         return hexToRgba(element.color || colorMap[element.origin] || "#888888")
       }
       return hexToRgba(colorMap["filtered out"], 0.15)
@@ -155,7 +161,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       setPendingZoomIndex(null);
     }
 
-  }, [currentData, lengthRange, pLDDT, supercog, taxonomy]);
+  }, [currentData, lengthRange, pLDDT, supercog, taxonomy, goTermFilter]);
 
   // Debounced server request function
   const debouncedSendMessage = useCallback(
@@ -239,6 +245,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       switch (data.type) {
         case 'init':
           setBackgroundData(data.points);
+          setGoTermFilter(data.points.map(_ => true));
           break;
 
         case 'update':
@@ -280,9 +287,28 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
   // Initial data fetch
   useEffect(() => {
-    const message = {...emptyMessage, type: "init", x0: -20, x1: 20, y0: -30, y1: 30}
-    sendMessage(JSON.stringify(message));
-  }, [sendMessage, goTerm]);
+    sendMessage(JSON.stringify({ type: 'init' }));
+  }, [sendMessage]);
+
+  useEffect(() => {
+    if(goTerm && aspect) {
+      async function fetchGotermFilter() {
+        result = await fetch(`${apiHost}/goterm`, {
+          method: 'POST',
+          body: JSON.stringify({
+            goterm: goTerm,
+            ontology: aspect,
+            points: backgroundData.map(point => point.clean_name)
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+        setGoTermFilter(result)
+      }
+      fetchGotermFilter()
+    }
+  }, [goTerm, aspect]);
 
   useEffect(() => {
     if(zoomedItem && graphInstanceRef.current && currentData) {

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter
+from pydantic import BaseModel
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -265,6 +266,34 @@ async def pdb(pdb_id: str):
         logger.info(f"CIF to PDB conversion took {time.time() - start_time:.2f}s")
         return full_loc + ".pdb"
 
+class GotermBody(BaseModel):
+    points: list[str]
+    goterm: str
+    ontology: str
+
+@api_router.post("/goterm")
+async def goterms(body: GotermBody):
+    points = body.points
+    goterm = body.goterm
+    ontology = body.ontology
+
+    goterm_loc = f"{GOTERM_LOC}/{ontology}/{goterm}.csv"
+    if not os.path.exists(goterm_loc):
+        return []
+    
+    if goterm not in GOTERMS_CACHE:
+        goterm_df = pd.read_csv(goterm_loc)
+        GOTERMS_CACHE[goterm] = set(goterm_df["Protein"].tolist())
+
+    result = []
+
+    for point_id in points:  
+        if point_id in GOTERMS_CACHE[goterm]:
+            result.append(True)
+        else:
+            result.append(False)
+    return result
+
 @api_router.get("/goterm/{protein:str}")
 async def protein_goterm(protein: str):
     # Check for the protein in both DeepFRI 1.0 (main dataset) and 1.1 (new folds)
@@ -368,7 +397,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if data.get("type") == "init":
                 # Handle initial data load - these points stay permanently
-                points = get_initial_points(goTerm = data.get("goTerm", None), ontology=data.get("ontology", None))
+                points = get_initial_points(goTerm = None, ontology = None)
                 await websocket.send_json(
                     {
                         "type": "init",
