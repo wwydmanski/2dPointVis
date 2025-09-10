@@ -238,7 +238,10 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
   // Process WebSocket messages
   useEffect(() => {
-    if (!lastMessage || lastProcessedMessageRef.current === lastMessage.data) return;
+    if (!lastMessage || lastProcessedMessageRef.current === lastMessage.data) {
+      setIsLoading(false);
+      return;
+    }
     
     lastProcessedMessageRef.current = lastMessage.data;
     try {
