@@ -223,6 +223,9 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     if(goTerm && graphInstanceRef.current && currentData) {
       graphInstanceRef.current.unselectPoints();
       selectionCallback(null);
+      const nextSizes = currentData.map((_) => 3);
+      graphInstanceRef.current.setPointSizes(nextSizes);
+      graphInstanceRef.current.render();
     }
   }, [goTerm]);
 
