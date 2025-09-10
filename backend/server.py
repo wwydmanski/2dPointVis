@@ -279,7 +279,7 @@ async def goterms(body: GotermBody):
 
     goterm_loc = f"{GOTERM_LOC}/{ontology}/{goterm}.csv"
     if not os.path.exists(goterm_loc):
-        return []
+        return [False for _ in range(10000)]
     
     if goterm not in GOTERMS_CACHE:
         goterm_df = pd.read_csv(goterm_loc)

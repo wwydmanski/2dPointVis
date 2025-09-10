@@ -293,6 +293,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   useEffect(() => {
     if(goTerm && aspect) {
       async function fetchGotermFilter() {
+        setIsLoading(true)
         const result = await fetch(`${apiHost}/goterm`, {
           method: 'POST',
           body: JSON.stringify({
@@ -305,8 +306,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
           },
         })
         const parsedResult = await result.json()
-        console.log(parsedResult)
         setGoTermFilter(parsedResult)
+        setIsLoading(false)
       }
       fetchGotermFilter()
     }
