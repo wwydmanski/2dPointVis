@@ -62,6 +62,17 @@ GOTERMS_NAME = pd.read_csv(
 ).rename(columns={"index": "GOterm"})
 logger.info(f"Loading GO terms names took {time.time() - start_time:.2f}s")
 
+TOP_10_GEOTERM_NAMES = [
+    { "GOname": "cell periphery", "GOterm": "GO:0071944", "Ontology": "CC" },
+    { "GOname": "cellular component organization", "GOterm": "GO:0016043", "Ontology": "BP" },
+    { "GOname": "cellular response to stimulus", "GOterm": "GO:0051716", "Ontology": "BP" },
+    { "GOname": "integral component of membrane", "GOterm": "GO:0016021", "Ontology": "CC" },
+    { "GOname": "intrinsic component of membrane", "GOterm": "GO:0031224", "Ontology": "CC" },
+    { "GOname": "nucleus", "GOterm": "GO:0005634", "Ontology": "CC" },
+    { "GOname": "plasma membrane", "GOterm": "GO:0005886", "Ontology": "CC" },
+    { "GOname": "RNA metabolic process", "GOterm": "GO:0016070", "Ontology": "BP" }
+]
+
 start_time = time.time()
 REPRESENTATIVE_MAPPING = pd.read_parquet(
     f"{DATA_WEBSERVER_PATH}/all_clusters_nf.parquet"
@@ -377,6 +388,8 @@ async def name_search(name: str):
 
 @api_router.get("/goterm_autocomplete")
 async def goterm_autocomplete(goterm: str):
+    if goterm == "" or goterm is None:
+        return TOP_10_GEOTERM_NAMES
     start_time = time.time()
     subset = GOTERMS_NAME[
         GOTERMS_NAME["GOname"].str.lower().str.contains(goterm.lower())

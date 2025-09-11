@@ -92,6 +92,11 @@ const Search = ({
                         setAutocomplete(data);
                         });
                     }}
+                    onOpen={() => {
+                        fetch(`${goTermSearchUrl}?goterm=`)
+                        .then(res => res.json())
+                        .then(data => setAutocomplete(data));
+                    }}
                 />
                 )}
                 <Stack direction="row" spacing={2} marginTop="6px" justifyContent={"end"}>

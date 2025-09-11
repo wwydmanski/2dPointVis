@@ -62,20 +62,6 @@ const MoreButton = () => {
                 open={open}
                 onClose={handleClose}
             >
-                <MenuItem
-                    onClick={() => {
-                        setShowModal(true)
-                        handleClose()
-                    }} 
-                >
-                    <Typography style={{ marginRight: "8px", fontSize: 20 }}>@</Typography>
-                    <Typography 
-                        variant="body2" 
-                        fontWeight="medium"
-                    >
-                        Feedback
-                    </Typography>
-                </MenuItem>
                 <MenuItem>
                     <Link
                         href="https://www.nature.com/articles/s41467-025-63250-3"
@@ -111,6 +97,20 @@ const MoreButton = () => {
                         </svg>
                         <Typography variant="body2" fontWeight="medium">GitHub Repository</Typography>
                     </Link>
+                </MenuItem>
+                <MenuItem
+                    onClick={() => {
+                        setShowModal(true)
+                        handleClose()
+                    }} 
+                >
+                    <Typography style={{ marginRight: "8px", fontSize: 20 }}>@</Typography>
+                    <Typography 
+                        variant="body2" 
+                        fontWeight="medium"
+                    >
+                        Feedback
+                    </Typography>
                 </MenuItem>
             </Menu>
         </div>

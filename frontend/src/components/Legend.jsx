@@ -30,6 +30,11 @@ const Legend = () => {
                 open={open}
                 onClose={handleClose}
             >
+                <div style={{display: 'flex', justifyContent: 'center', width: "100%"}}>
+                    <div style={{width: 180, fontSize: 12}}>
+                        Each dot in the visualization is a non-redundant cluster after second-stage Foldseek clustering. Dot color indicates the representative protein's database/type from the first-stage Foldseek clustering (see Fig. 1 in the paper: section MORE). By default, the visualization samples 10,000 points at startup. Whenever the user changes the viewpoint, the view is updated by adding 1,000 more points to improve detail.
+                    </div>
+                </div>
                 {Object.keys(colorMap).map((name, index) => 
                     <MenuItem key={index+name} onClick={handleClose}>
                         <div style={{display: 'flex', justifyContent: 'space-between', width: "100%"}}>
