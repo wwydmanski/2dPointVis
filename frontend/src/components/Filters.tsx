@@ -1,5 +1,5 @@
-import React from "react";
-import { Stack, Fade, Card, Typography, Box, Slider, Select, MenuItem, FormGroup, FormControlLabel, Checkbox } from '@mui/material';;
+import React, { useState } from "react";
+import { Stack, Fade, Card, Typography, Box, Slider, Select, MenuItem, FormGroup, FormControlLabel, Checkbox, Button } from '@mui/material';;
 import { TAXONOMY_MAPPING, ANNOTATION_MAPPING, SOURCES, SOURCE_MAPPING } from "../utils/consts.js";
 
 export const Filters = ({
@@ -27,6 +27,54 @@ export const Filters = ({
     setSelectedSources: (value: string[]) => void,
     setCurrentCluster: (value: string) => void
 }) => {
+    const handleReset = () => {
+      setlengthRange([0, 2700])
+      setPLDDT([20, 100])
+      setTaxonomy(Object.keys(TAXONOMY_MAPPING))
+      setSupercog(Object.keys(ANNOTATION_MAPPING))
+      setSelectedSources(SOURCES)
+      setTaxonomyButtonLabel("none");
+      setDatabaseButtonLabel("none");
+      setSupercogButtonLabel("none");
+    }
+
+    const [taxonomyButtonLabel, setTaxonomyButtonLabel] = useState<"all" | "none">("none");
+    const [supercogButtonLabel, setSupercogButtonLabel] = useState<"all" | "none">("none");
+    const [databaseButtonLabel, setDatabaseButtonLabel] = useState<"all" | "none">("none");
+
+    const handleTaxonomyButtonClick = () => {
+      if(taxonomyButtonLabel === "none") {
+        setTaxonomy([])
+        setTaxonomyButtonLabel("all")
+      }
+      else {
+        setTaxonomy(Object.keys(TAXONOMY_MAPPING))
+        setTaxonomyButtonLabel("none")
+      }
+    }
+
+    const handleSupercogButtonClick = () => {
+      if(supercogButtonLabel === "none") {
+        setSupercog([])
+        setSupercogButtonLabel("all")
+      }
+      else {
+        setSupercog(Object.keys(ANNOTATION_MAPPING))
+        setSupercogButtonLabel("none")
+      }
+    }
+
+    const handleDatabaseButtonClick = () => {
+      if(databaseButtonLabel === "none") {
+        setSelectedSources([])
+        setDatabaseButtonLabel("all")
+      }
+      else {
+        setSelectedSources(SOURCES)
+        setDatabaseButtonLabel("none")
+      }
+    }
+
     return (
         <Stack direction="column" spacing={1} sx={{
           position: "absolute",
@@ -35,7 +83,7 @@ export const Filters = ({
           overflow: "hidden",
           margin: "0",
           justifyContent: "end",
-          maxWidth: "450px",
+          width: "450px",
           pointerEvents: "none"
         }}
         >
@@ -99,9 +147,9 @@ export const Filters = ({
                 </Stack>
                 
                 {/* Dropdown Filters */}
-                <Stack direction="row" spacing={2} sx={{ mt: 1, px: 1 }}>
+                <Stack direction="row" spacing={1} sx={{ mt: 1, px: 1 }}>
                   {/* Taxonomy Filter */}
-                  <Box sx={{ width: "33.3%" }}>
+                  <Box sx={{ width: "29%" }}>
                     <Typography variant="body2" gutterBottom sx={{ mb: 1 }}>Taxonomy</Typography>
                     <Select
                       value={"taxonomy"}
@@ -115,6 +163,7 @@ export const Filters = ({
                       <MenuItem value={"taxonomy"}>Taxonomy</MenuItem>
                       <Box pl={1} sx={{ maxHeight: '200px', overflow: 'auto' }}>
                         <FormGroup sx={{ p: 1.5 }}>
+                          <Button onClick={handleTaxonomyButtonClick}>{taxonomyButtonLabel}</Button>
                           {
                             Object.keys(TAXONOMY_MAPPING).map((tax, i) => (
                               <FormControlLabel key={i} control={
@@ -126,10 +175,13 @@ export const Filters = ({
                               } label={<Typography variant="body2">{TAXONOMY_MAPPING[tax]}</Typography>}
                                 value={tax}
                                 onChange={(_event, checked: boolean) => {
-                                  if (checked) {
-                                    setTaxonomy([...taxonomy, tax]);
-                                  } else {
-                                    setTaxonomy(taxonomy.filter((t) => t !== tax));
+                                  const newTaxonomy = checked ? [...taxonomy, tax] : taxonomy.filter((t) => t !== tax)
+                                  setTaxonomy(newTaxonomy);
+                                  if(newTaxonomy.length === Object.keys(TAXONOMY_MAPPING).length) {
+                                    setTaxonomyButtonLabel("none")
+                                  }
+                                  else {
+                                    setTaxonomyButtonLabel("all")
                                   }
                                 }}
                               />
@@ -141,7 +193,7 @@ export const Filters = ({
                   </Box>
                   
                   {/* superCOG Filter */}
-                  <Box sx={{ width: "33.3%" }}>
+                  <Box sx={{ width: "29%" }}>
                     <Typography variant="body2" gutterBottom sx={{ mb: 1 }}>superCOG</Typography>
                     <Select
                       value={"superCOG"}
@@ -155,6 +207,7 @@ export const Filters = ({
                       <MenuItem value={"superCOG"}>superCOG</MenuItem>
                       <Box pl={1} sx={{ maxHeight: '200px', overflow: 'auto' }}>
                         <FormGroup sx={{ p: 1.5 }}>
+                          <Button onClick={handleSupercogButtonClick}>{supercogButtonLabel}</Button>
                           {
                             Object.keys(ANNOTATION_MAPPING).map((scog, i) => (
                               <FormControlLabel key={i} control={
@@ -166,10 +219,13 @@ export const Filters = ({
                               } label={<Typography variant="body2">{ANNOTATION_MAPPING[scog]}</Typography>}
                                 value={scog}
                                 onChange={(_event, checked: boolean) => {
-                                  if (checked) {
-                                    setSupercog([...supercog, scog]);
-                                  } else {
-                                    setSupercog(supercog.filter((s) => s !== scog));
+                                  const newSupercog = checked ? [...supercog, scog] : supercog.filter((s) => s !== scog)
+                                  setSupercog(newSupercog);
+                                  if(newSupercog.length === Object.keys(ANNOTATION_MAPPING).length) {
+                                    setSupercogButtonLabel("none")
+                                  }
+                                  else {
+                                    setSupercogButtonLabel("all")
                                   }
                                 }}
                               />
@@ -181,7 +237,7 @@ export const Filters = ({
                   </Box>
                   
                   {/* Database Filter */}
-                  <Box sx={{ width: "33.3%" }}>
+                  <Box sx={{ width: "29%" }}>
                     <Typography variant="body2" gutterBottom sx={{ mb: 1 }}>Database</Typography>
                     <Select
                       value={"Origin"}
@@ -195,6 +251,7 @@ export const Filters = ({
                       <MenuItem value={"Origin"}>Database</MenuItem>
                       <Box pl={1} sx={{ maxHeight: '200px', overflow: 'auto' }}>
                         <FormGroup sx={{ p: 1.5 }}>
+                          <Button onClick={handleDatabaseButtonClick}>{databaseButtonLabel}</Button>
                           {
                             SOURCES.map((source, i) => (
                               <FormControlLabel key={i} control={
@@ -206,10 +263,13 @@ export const Filters = ({
                               } label={<Typography variant="body2">{SOURCE_MAPPING[source]}</Typography>}
                                 value={source}
                                 onChange={(_event, checked: boolean) => {
-                                  if (checked) {
-                                    setSelectedSources([...selectedSources, source]);
-                                  } else {
-                                    setSelectedSources(selectedSources.filter((s) => s !== source));
+                                  const newDatabases = checked ? [...selectedSources, source] : selectedSources.filter((s) => s !== source)
+                                  setSelectedSources(newDatabases);
+                                  if(newDatabases.length === SOURCES.length) {
+                                    setDatabaseButtonLabel("none")
+                                  }
+                                  else {
+                                    setDatabaseButtonLabel("all")
                                   }
                                 }}
                               />
@@ -218,6 +278,11 @@ export const Filters = ({
                         </FormGroup>
                       </Box>
                     </Select>
+                  </Box>
+                  <Box sx={{ width: "13%" }}>
+                    <Button onClick={handleReset} sx={{mt: 3.5}}>
+                        Reset
+                    </Button>
                   </Box>
                 </Stack>
               </Stack>
