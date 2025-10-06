@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Stack, Fade, Card, Typography, Box, Slider, Select, MenuItem, FormGroup, FormControlLabel, Checkbox, Button } from '@mui/material';;
+import React, { ChangeEvent, useState } from "react";
+import { Stack, Fade, Card, Typography, Box, Slider, Select, MenuItem, FormGroup, FormControlLabel, Checkbox, Button, Tooltip, TextField } from '@mui/material';;
 import { TAXONOMY_MAPPING, ANNOTATION_MAPPING, SOURCES, SOURCE_MAPPING } from "../utils/consts.js";
 
 export const Filters = ({
@@ -27,6 +27,16 @@ export const Filters = ({
     setSelectedSources: (value: string[]) => void,
     setCurrentCluster: (value: string) => void
 }) => {
+    const [taxonomyButtonLabel, setTaxonomyButtonLabel] = useState<"all" | "none">("none");
+    const [supercogButtonLabel, setSupercogButtonLabel] = useState<"all" | "none">("none");
+    const [databaseButtonLabel, setDatabaseButtonLabel] = useState<"all" | "none">("none");
+    const [inputtedFromPLDDT, setInputtedFromPLDDT] = useState<number>(20)
+    const [inputtedToPLDDT, setInputtedToPLDDT] = useState<number>(100)
+    const [inputtedFromLength, setInputtedFromLength] = useState<number>(0)
+    const [inputtedToLength, setInputtedToLength] = useState<number>(2700)
+    const [openPLDDTTyping, setOpenPLDDTTyping] = useState<boolean>(false)
+    const [openLengthTyping, setOpenLengthTyping] = useState<boolean>(false)
+
     const handleReset = () => {
       setlengthRange([0, 2700])
       setPLDDT([20, 100])
@@ -37,10 +47,6 @@ export const Filters = ({
       setDatabaseButtonLabel("none");
       setSupercogButtonLabel("none");
     }
-
-    const [taxonomyButtonLabel, setTaxonomyButtonLabel] = useState<"all" | "none">("none");
-    const [supercogButtonLabel, setSupercogButtonLabel] = useState<"all" | "none">("none");
-    const [databaseButtonLabel, setDatabaseButtonLabel] = useState<"all" | "none">("none");
 
     const handleTaxonomyButtonClick = () => {
       if(taxonomyButtonLabel === "none") {
@@ -75,6 +81,38 @@ export const Filters = ({
       }
     }
 
+    const handleChangeFromPLDDTInput = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = parseInt(event.target.value, 10);
+        setInputtedFromPLDDT(value)
+        if(value < pLDDT[1] && value >= 20) {
+          setPLDDT([value, pLDDT[1]]);
+        }
+    }
+
+    const handleChangeToPLDDTInput = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = parseInt(event.target.value, 10);
+        setInputtedToPLDDT(value)
+        if(value > pLDDT[0] && value <= 100) {
+          setPLDDT([pLDDT[0], value]);
+        }
+    }
+
+    const handleChangeFromLengthInput = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = parseInt(event.target.value, 10);
+        setInputtedFromLength(value)
+        if(value < lengthRange[1] && value >= 0) {
+          setlengthRange([value, lengthRange[1]]);
+        }
+    }
+
+    const handleChangeToLengthInput = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = parseInt(event.target.value, 10);
+        setInputtedToLength(value)
+        if(value > lengthRange[0] && value <= 2700) {
+          setlengthRange([lengthRange[0], value])
+        }
+    }
+
     return (
         <Stack direction="column" spacing={1} sx={{
           position: "absolute",
@@ -104,7 +142,34 @@ export const Filters = ({
                 {/* AFDB pLDDT and Length Sliders */}
                 <Stack direction="row" spacing={3} sx={{ px: 1 }}>
                   <Box sx={{ width: "50%" }}>
-                    <Typography variant="body2" gutterBottom sx={{ mb: 1 }}>AFDB pLDDT</Typography>
+                    <span style={{ marginBottom: 5, display: 'flex', flexDirection: 'row', alignItems: 'center', columnGap: 5 }}>
+                      <Typography variant="body2">AFDB pLDDT</Typography>
+                      <Tooltip 
+                      open={openPLDDTTyping}
+                      onClose={() => setOpenPLDDTTyping(false)}
+                      arrow
+                      disableHoverListener
+                      title={
+                        <span style={{ display: 'flex', flexDirection: 'row', columnGap: 10 }}>
+                          <TextField label='From' type="number" variant="outlined" size="small" value={inputtedFromPLDDT} onChange={handleChangeFromPLDDTInput} />
+                          <TextField label='To' type="number" variant="outlined" size="small" value={inputtedToPLDDT} onChange={handleChangeToPLDDTInput} />
+                        </span>
+                      }
+                      slotProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: 'background.paper',
+                            color: 'text.primary',
+                            boxShadow: 3,
+                            opacity: 1,
+                            padding: 1
+                          },
+                        },
+                      }}>
+                        <Button style={{ padding: 1 }} onClick={() => setOpenPLDDTTyping(true)}>Type</Button>
+                      </Tooltip>
+                    </span>
+                    
                     <Slider
                       defaultValue={[20, 100]}
                       value={pLDDT}
@@ -115,6 +180,8 @@ export const Filters = ({
                       getAriaValueText={(value: any) => value}
                       onChange={(e: any, value: number[]) => {
                         setPLDDT(value);
+                        setInputtedFromPLDDT(value[0])
+                        setInputtedToPLDDT(value[1])
                       }}
                       size="small"
                       marks={[
@@ -125,7 +192,35 @@ export const Filters = ({
                   </Box>
                   
                   <Box sx={{ width: "50%" }}>
-                    <Typography variant="body2" gutterBottom sx={{ mb: 1 }}>Length</Typography>
+                    <span style={{ marginBottom: 5, display: 'flex', flexDirection: 'row', alignItems: 'center', columnGap: 5 }}>
+                      <Typography variant="body2">Length</Typography>
+                      <Tooltip 
+                      open={openLengthTyping}
+                      onClose={() => setOpenLengthTyping(false)}
+                      arrow
+                      disableHoverListener
+                      title={
+                        <span style={{ display: 'flex', flexDirection: 'row', columnGap: 10 }}>
+                          <TextField label='From' type="number" variant="outlined" size="small" value={inputtedFromLength} onChange={handleChangeFromLengthInput} />
+                          <TextField label='To' type="number" variant="outlined" size="small" value={inputtedToLength} onChange={handleChangeToLengthInput} />
+                        </span>
+                      }
+                      slotProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: 'background.paper',
+                            color: 'text.primary',
+                            boxShadow: 3,
+                            opacity: 1,
+                            padding: 1
+                          },
+                        },
+                      }}
+                      >
+                        <Button style={{ padding: 1 }} onClick={() => setOpenLengthTyping(true)}>Type</Button>
+                      </Tooltip>
+                    </span>
+                    
                     <Slider
                       defaultValue={[0, 2700]}
                       value={lengthRange}
@@ -136,6 +231,8 @@ export const Filters = ({
                       getAriaValueText={(value: any) => value}
                       onChange={(e: any, value: number[]) => {
                         setlengthRange(value);
+                        setInputtedFromLength(value[0])
+                        setInputtedToLength(value[1])
                       }}
                       size="small"
                       marks={[
