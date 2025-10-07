@@ -2,8 +2,33 @@ import { Fade, Card, Link, Typography } from "@mui/material";
 import React from "react";
 import Legend from '../components/Legend.jsx';
 import MoreButton from '../components/MoreButton.jsx'
+import CsvButton from "./CsvButton.js";
 
-const BottomMenu = () => {
+const BottomMenu = ({
+  pLDDT,
+  lengthRange,
+  taxonomy,
+  supercog,
+  selectedSources,
+  x0,
+  x1,
+  y0,
+  y1,
+  goTerm,
+  ontology
+}:{
+  pLDDT: number[],
+  lengthRange: number[],
+  taxonomy: string[],
+  supercog: string[],
+  selectedSources: string[],
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  goTerm: string,
+  ontology: string
+}) => {
     return (
         <Fade in={true} timeout={1400}>
           <div style={{
@@ -22,6 +47,21 @@ const BottomMenu = () => {
             </Card>
             <Card>
               <Legend />
+            </Card>
+            <Card>
+              <CsvButton
+                pLDDT={pLDDT}
+                lengthRange={lengthRange}
+                taxonomy={taxonomy}
+                supercog={supercog}
+                selectedSources={selectedSources}
+                x0={x0}
+                x1={x1}
+                y0={y0}
+                y1={y1}
+                goTerm={goTerm}
+                ontology={ontology}
+              />
             </Card>
           </div>
         </Fade>

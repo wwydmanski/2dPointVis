@@ -1,5 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, Response
 from pydantic import BaseModel
+from fastapi import Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -17,7 +18,8 @@ import concurrent.futures
 from functools import lru_cache
 import re
 import tqdm
-
+import csv
+import io
 
 # Read DATA_PATH from environment variable
 DATA_PATH = os.environ.get("DATA_PATH")
@@ -396,6 +398,53 @@ async def goterm_autocomplete(goterm: str):
     ][:10]
     logger.info(f"GO term autocomplete for '{goterm}' took {time.time() - start_time:.2f}s")
     return subset.to_dict(orient="records")
+
+@api_router.get("/export_to_csv")
+async def export_to_csv(request: Request):
+    qp = request.query_params  # MultiDict-like object
+
+    # 🔹 Pobierz listy dla kluczy, które mogą występować wielokrotnie
+    pLDDT = qp.getlist("pLDDT")
+    lengthRange = qp.getlist("lengthRange")
+    taxonomy = qp.getlist("taxonomy")
+    supercog = qp.getlist("supercog")
+    selectedSources = qp.getlist("selectedSources")
+
+    # 🔹 Pobierz pojedyncze wartości
+    x0 = qp.get("x0")
+    x1 = qp.get("x1")
+    y0 = qp.get("y0")
+    y1 = qp.get("y1")
+    ontology = qp.get("ontology")
+    goTerm = qp.get("goTerm")
+
+    points = get_points(
+        x0=float(x0),
+        x1=float(x1),
+        y0=float(y0),
+        y1=float(y1),
+        types=",".join(map(str, selectedSources)),
+        lengthRange=",".join(map(str, lengthRange)),
+        pLDDT=",".join(map(str, pLDDT)),
+        supercog=",".join(map(str, supercog)),
+        goterm=goTerm,
+        ontology=ontology,
+        taxonomy=",".join(map(str, taxonomy)),
+        number_of_points=12000
+    )
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    if points and len(points) > 0:
+        header = list(points[0])
+        writer.writerow(header)
+
+        for point in points:
+            writer.writerow(point.values())
+    response = Response(output.getvalue(), media_type='text/csv')
+    response.headers['Content-Disposition'] = 'attachment; filename=points_data.csv'
+    return response
+
+
 
 @api_router.websocket("/ws/points")
 async def websocket_endpoint(websocket: WebSocket):

@@ -7,7 +7,7 @@ import { colorMap } from '../utils/consts';
 import hexToRgba from '../utils/hexToRgba';
 import graphConfig from '../utils/graphConfig';
 
-export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem }) {
+export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport }) {
   // Main state
   const [currentData, setCurrentData] = useState(undefined);
   const [visible, setVisible] = useState({
@@ -100,6 +100,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       x: { min: left, max: right },
       y: { min: bottom, max: top }
     });
+
+    setViewport([left, right, bottom, top])
 
     setViewportChanged(true);
   }, []);

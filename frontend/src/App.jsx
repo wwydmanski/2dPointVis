@@ -33,6 +33,7 @@ function App() {
   const [goTermDetails, setGoTermDetails] = React.useState(null);
   const [selectedGoTermValue, setSelectedGoTermValue] = React.useState(null);
   const [selectedNonRepresentative, setSelectedNonRepresentative] = React.useState(null);
+  const [viewport, setViewport] = React.useState([-20, 20, -30, 20])
 
   // Update this useEffect to fetch GO term details when a protein is selected
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
@@ -140,6 +141,7 @@ function App() {
           setIsLoading={setIsLoading}
           taxonomy={taxonomy}
           zoomedItem={zoomedItem}
+          setViewport={setViewport}
         />
         <Stack direction="column" spacing={2} sx={{
           position: "absolute",
@@ -240,8 +242,20 @@ function App() {
           setCurrentCluster={setCurrentCluster}       
         />
 
-        {/* GitHub Repository Link - Small Card */}
-        <BottomMenu />
+        
+        <BottomMenu 
+          pLDDT={pLDDT}
+          lengthRange={lengthRange}
+          taxonomy={taxonomy}
+          supercog={supercog}
+          selectedSources={selectedSources}
+          x0={viewport[0]}
+          x1={viewport[1]}
+          y0={viewport[2]}
+          y1={viewport[3]}
+          goTerm={goTerm}
+          ontology={aspect}
+        />
       </Box >
     </ThemeProvider >
   )
