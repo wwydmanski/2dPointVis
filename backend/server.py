@@ -75,6 +75,21 @@ TOP_10_GEOTERM_NAMES = [
     { "GOname": "RNA metabolic process", "GOterm": "GO:0016070", "Ontology": "BP" }
 ]
 
+MAPPED_COLUMN_NAMES = {
+    "protein_id": "protein",
+    "database": "origin",
+    "repr_protein_id": "representative",
+    "x": "x",
+    "y": "x",
+    "length": "length",
+    "afdb_pLDDT": "afdb_pLDDT",
+    "superCOG_v10": "superCOG_v10",
+    "superCOG_v11": "superCOG_v11",
+    "taxonomy": "taxonomy",
+    "origin": "taxonomy_name",
+    "url": "url"
+}
+
 start_time = time.time()
 REPRESENTATIVE_MAPPING = pd.read_parquet(
     f"{DATA_WEBSERVER_PATH}/all_clusters_nf.parquet"
@@ -162,10 +177,17 @@ def get_points(
     goterm: str = "",
     ontology: str="",
     taxonomy: str="",
-    number_of_points: int = 1000
+    number_of_points: int = 1000,
+    ids = "",
+    columns = []
 ):
     total_start_time = time.time()
     conditions = []
+
+    if ids:
+        ids = ids.split(",")
+        conditions.append(DATA["clean_name"].isin(ids))
+
     if len(types) > 0:
         types = types.split(",")
         conditions.append(DATA["origin"].isin(types))
@@ -228,6 +250,10 @@ def get_points(
             mask &= cond
         
     subset = DATA[mask]
+
+    if len(columns) > 0:
+        subset = subset[list(map(lambda column: MAPPED_COLUMN_NAMES[column], columns))]
+
     logger.info(f"Initial spatial filtering took {time.time() - filter_start_time:.2f}s")
     
     if len(subset) > number_of_points:
@@ -399,24 +425,23 @@ async def goterm_autocomplete(goterm: str):
     logger.info(f"GO term autocomplete for '{goterm}' took {time.time() - start_time:.2f}s")
     return subset.to_dict(orient="records")
 
-@api_router.get("/export_to_csv")
-async def export_to_csv(request: Request):
-    qp = request.query_params  # MultiDict-like object
+@api_router.post("/export_to_tsv")
+async def export_to_tsv(request: Request):
+    body = await request.json()
 
-    # 🔹 Pobierz listy dla kluczy, które mogą występować wielokrotnie
-    pLDDT = qp.getlist("pLDDT")
-    lengthRange = qp.getlist("lengthRange")
-    taxonomy = qp.getlist("taxonomy")
-    supercog = qp.getlist("supercog")
-    selectedSources = qp.getlist("selectedSources")
-
-    # 🔹 Pobierz pojedyncze wartości
-    x0 = qp.get("x0")
-    x1 = qp.get("x1")
-    y0 = qp.get("y0")
-    y1 = qp.get("y1")
-    ontology = qp.get("ontology")
-    goTerm = qp.get("goTerm")
+    pLDDT = body.get("pLDDT", [])
+    lengthRange = body.get("lengthRange", [])
+    taxonomy = body.get("taxonomy", [])
+    supercog = body.get("supercog", [])
+    selectedSources = body.get("selectedSources", [])
+    columnNames = body.get("columnNames")
+    x0 = body.get("x0")
+    x1 = body.get("x1")
+    y0 = body.get("y0")
+    y1 = body.get("y1")
+    ontology = body.get("ontology")
+    goTerm = body.get("goTerm")
+    ids = body.get("ids")
 
     points = get_points(
         x0=float(x0),
@@ -430,18 +455,22 @@ async def export_to_csv(request: Request):
         goterm=goTerm,
         ontology=ontology,
         taxonomy=",".join(map(str, taxonomy)),
-        number_of_points=12000
+        number_of_points=10000,
+        ids=",".join(ids),
+        columns=columnNames
     )
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter=";")
-    if points and len(points) > 0:
-        header = list(points[0])
-        writer.writerow(header)
 
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter='\t')
+
+    if points and len(points) > 0:
+        header = columnNames
+        writer.writerow(header)
         for point in points:
             writer.writerow(point.values())
-    response = Response(output.getvalue(), media_type='text/csv')
-    response.headers['Content-Disposition'] = 'attachment; filename=points_data.csv'
+
+    response = Response(output.getvalue(), media_type='text/tab-separated-values')
+    response.headers['Content-Disposition'] = 'attachment; filename=data.tsv'
     return response
 
 

@@ -1,5 +1,5 @@
-import { Button } from "@mui/material";
-import React from "react";
+import { Box, Button, Checkbox, FormControlLabel, FormGroup, Modal, Typography } from "@mui/material";
+import React, { useState } from "react";
 import { DJANGO_HOST } from "../utils/consts.js";
 
 const CsvButton = ({
@@ -13,7 +13,8 @@ const CsvButton = ({
   y0,
   y1,
   goTerm,
-  ontology
+  ontology,
+  pointIds
 }:{
   pLDDT: number[],
   lengthRange: number[],
@@ -25,13 +26,46 @@ const CsvButton = ({
   y0: number,
   y1: number,
   goTerm: string,
-  ontology: string
+  ontology: string,
+  pointIds: string[]
 }) => {
+    const modalBoxStyle = {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 400,
+        bgcolor: 'background.paper',
+        border: '2px solid #000',
+        boxShadow: 24,
+        p: 4,
+    };
+
+    const COLUMNS = [
+        "protein_id",
+        "database",
+        "repr_protein_id",
+        "x",
+        "y",
+        "length",
+        "afdb_pLDDT",
+        "superCOG_v10",
+        "superCOG_v11",
+        "taxonomy",
+        "origin",
+        "url"
+    ]
+
+    const [chosenColumns, setChosenColumns] = useState(COLUMNS)
+    const [onlyVisibleVertices, setOnlyVisibleVertices] = useState(true)
+
     const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
         ? DJANGO_HOST + "/api"
         : window.location.origin + "/api";
+    
+    const [showModal, setShowModal] = useState(false)
 
-    const handleCsvClick = async () => {
+    const handleExportClick = async (loadIds: boolean) => {
         const filters = {
             pLDDT: pLDDT,
             lengthRange: lengthRange,
@@ -43,39 +77,98 @@ const CsvButton = ({
             y0: y0,
             y1: y1,
             goTerm: goTerm,
-            ontology: ontology
-        }
+            ontology: ontology,
+            ids: loadIds ? pointIds : [],
+            columnNames: chosenColumns
+        };
 
-        const params = new URLSearchParams();
+        try {
+            const response = await fetch(`${host}/export_to_tsv`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(filters)
+            });
 
-        for (const [key, value] of Object.entries(filters)) {
-            if (Array.isArray(value)) {
-                value.forEach(v => {
-                    if (v !== undefined && v !== null && v !== "")
-                    params.append(key, v.toString());
-                });
-            } else if (value !== undefined && value !== null && value !== "") {
-                params.append(key, value.toString());
+            if (!response.ok) {
+                throw new Error(`Błąd serwera: ${response.status}`);
             }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "data.tsv";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            setShowModal(false)
+        } catch (error) {
+            console.error("Error on fetching:", error);
         }
+    };
 
-        const queryString = params.toString();
-
-        const response = await fetch(`${host}/export_to_csv?${queryString}`);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "dane.csv";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    }
 
     return (
         <div>
-            <Button onClick={handleCsvClick}>Csv</Button>
+            <Modal
+                open={showModal}
+                onClose={() => setShowModal(false)}
+                aria-labelledby="modal-modal-title"
+                aria-describedby="modal-modal-description"
+            >
+                <Box sx={modalBoxStyle}>
+                    <Typography variant="h6" component="h2">
+                        Exporting to TSV File
+                    </Typography>
+                    <Typography>Select columns for export</Typography>
+                    <Box pl={1} sx={{ maxHeight: '200px', overflow: 'auto', bgcolor: "#5555", mt: 2, borderRadius: 4, mb: 2 }}>
+                        <FormGroup sx={{ p: 1.5 }}>
+                            {Object.keys(COLUMNS).map((column: string, i) => (
+                                <FormControlLabel 
+                                    key={i} 
+                                    control={
+                                        <Checkbox
+                                            // @ts-ignore
+                                            checked={chosenColumns.includes(COLUMNS[column])}
+                                            size="small"
+                                        />
+                                        
+                                    }
+                                    // @ts-ignore
+                                    label={<Typography variant="body2">{COLUMNS[column]}</Typography>}
+                                    value={column}
+                                    onChange={(_event, checked: boolean) => {
+                                        // @ts-ignore
+                                        const columnString = COLUMNS[column];
+                                        const newChosenColumns = checked ? [...chosenColumns, columnString] : chosenColumns.filter((c) => c !== columnString)
+                                        setChosenColumns(newChosenColumns)
+                                    }}
+                                />
+                            ))}
+                        </FormGroup>
+                    </Box>
+                    <FormGroup>
+                        <FormControlLabel 
+                            control={
+                                <Checkbox
+                                    checked={onlyVisibleVertices}
+                                    size="small"
+                                />
+                            }
+                            label="Only vertices visible on viewport"
+                            value={onlyVisibleVertices}
+                            onChange={() => setOnlyVisibleVertices(!onlyVisibleVertices)}
+                        />
+                    </FormGroup>
+                    <Box sx={{display: 'flex', flexDirection: 'row', justifyContent: 'flex-end'}}>
+                        <Button onClick={() => handleExportClick(onlyVisibleVertices)}>Export</Button>
+                    </Box>
+                </Box>
+            </Modal>
+            <Button onClick={() => setShowModal(true)}>Export data</Button>
         </div>
     )
 }

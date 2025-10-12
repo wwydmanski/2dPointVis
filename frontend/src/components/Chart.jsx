@@ -7,7 +7,7 @@ import { colorMap } from '../utils/consts';
 import hexToRgba from '../utils/hexToRgba';
 import graphConfig from '../utils/graphConfig';
 
-export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport }) {
+export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport, setPointIds }) {
   // Main state
   const [currentData, setCurrentData] = useState(undefined);
   const [visible, setVisible] = useState({
@@ -162,7 +162,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       graphInstanceRef.current.selectPointByIndex(pendingZoomIndex);
       setPendingZoomIndex(null);
     }
-
+    setPointIds(currentData.map(point => point["clean_name"]))
   }, [currentData, lengthRange, pLDDT, supercog, taxonomy, goTermFilter]);
 
   // Debounced server request function

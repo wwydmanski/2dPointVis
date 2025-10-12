@@ -34,6 +34,7 @@ function App() {
   const [selectedGoTermValue, setSelectedGoTermValue] = React.useState(null);
   const [selectedNonRepresentative, setSelectedNonRepresentative] = React.useState(null);
   const [viewport, setViewport] = React.useState([-20, 20, -30, 20])
+  const [pointIds, setPointIds] = React.useState([])
 
   // Update this useEffect to fetch GO term details when a protein is selected
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
@@ -142,6 +143,7 @@ function App() {
           taxonomy={taxonomy}
           zoomedItem={zoomedItem}
           setViewport={setViewport}
+          setPointIds={setPointIds}
         />
         <Stack direction="column" spacing={2} sx={{
           position: "absolute",
@@ -255,6 +257,7 @@ function App() {
           y1={viewport[3]}
           goTerm={goTerm}
           ontology={aspect}
+          pointIds={pointIds}
         />
       </Box >
     </ThemeProvider >
