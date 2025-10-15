@@ -36,23 +36,23 @@ DATA_FULL = pd.read_parquet(
     f"{DATA_WEBSERVER_PATH}/data.parquet"
 ).drop(columns=["afdb_hq"])
 DATA_FULL["protein"] = list(DATA_FULL.index)
-DATA = DATA_FULL.dropna(subset=["x", "y"])
-DATA = DATA.rename(columns={"origin": "taxonomy_name", "database": "origin"})
+DATA_FULL = DATA_FULL.rename(columns={"origin": "taxonomy_name", "database": "origin"})
 
-logger.info(f"Taxonomy: {DATA['taxonomy'].value_counts()}")
+logger.info(f"Taxonomy: {DATA_FULL['taxonomy'].value_counts()}")
 
-logger.info(f"Loading main data took {time.time() - start_time:.2f}s ({len(DATA)} points)")
+logger.info(f"Loading main data took {time.time() - start_time:.2f}s ({len(DATA_FULL)} points)")
 
-logger.info(f"Columns: {DATA.columns}")
-logger.info(f"Data: {DATA.iloc[0]}")
+logger.info(f"Columns: {DATA_FULL.columns}")
+logger.info(f"Data: {DATA_FULL.iloc[0]}")
 
-DATA = DATA.sample(frac=1, random_state=42)
-DATA.loc[
-    (DATA["origin"] != "AFDB light clusters") & (DATA["origin"] != "AFDB dark clusters"),
+DATA_FULL = DATA_FULL.sample(frac=1, random_state=42)
+DATA_FULL.loc[
+    (DATA_FULL["origin"] != "AFDB light clusters") & (DATA_FULL["origin"] != "AFDB dark clusters"),
     "afdb_pLDDT",
 ] = -1
-DATA["clean_name"] = DATA["protein"].str.replace("AF-", "").str.replace("-model_v4", "").str.replace("-F1", "")
-DATA["representative"] = DATA["clean_name"]
+DATA_FULL["clean_name"] = DATA_FULL["protein"].str.replace("AF-", "").str.replace("-model_v4", "").str.replace("-F1", "")
+DATA_FULL["representative"] = DATA_FULL["clean_name"]
+DATA = DATA_FULL.dropna(subset=["x", "y"])
 
 PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
 GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
@@ -78,7 +78,7 @@ TOP_10_GEOTERM_NAMES = [
 MAPPED_COLUMN_NAMES = {
     "protein_id": "protein",
     "database": "origin",
-    "repr_protein_id": "representative",
+    "repr_protein_id": "cluster_or_singleton",
     "x": "x",
     "y": "x",
     "length": "length",
@@ -179,7 +179,8 @@ def get_points(
     taxonomy: str="",
     number_of_points: int = 1000,
     ids = "",
-    columns = []
+    columns = [],
+    onlyRepresentatives=True
 ):
     total_start_time = time.time()
     conditions = []
@@ -251,13 +252,18 @@ def get_points(
         
     subset = DATA[mask]
 
-    if len(columns) > 0:
-        subset = subset[list(map(lambda column: MAPPED_COLUMN_NAMES[column], columns))]
-
     logger.info(f"Initial spatial filtering took {time.time() - filter_start_time:.2f}s")
     
     if len(subset) > number_of_points:
         subset = subset[:number_of_points]
+    
+    if not onlyRepresentatives:
+        representatives = subset['cluster_or_singleton'].unique()
+        filtered = DATA_FULL[DATA_FULL['cluster_or_singleton'].isin(representatives)]
+        subset = filtered
+
+    if len(columns) > 0:
+        subset = subset[list(map(lambda column: MAPPED_COLUMN_NAMES[column], columns))]
         
     logger.info(f"Total get_points processing took {time.time() - total_start_time:.2f}s with {len(subset)} results")
     return subset.to_dict(orient="records")
@@ -442,6 +448,7 @@ async def export_to_tsv(request: Request):
     ontology = body.get("ontology")
     goTerm = body.get("goTerm")
     ids = body.get("ids")
+    onlyRepresentatives=body.get("onlyRepresentatives")
 
     points = get_points(
         x0=float(x0),
@@ -457,7 +464,8 @@ async def export_to_tsv(request: Request):
         taxonomy=",".join(map(str, taxonomy)),
         number_of_points=10000,
         ids=",".join(ids),
-        columns=columnNames
+        columns=columnNames,
+        onlyRepresentatives=onlyRepresentatives
     )
 
     output = io.StringIO()

@@ -1,4 +1,4 @@
-import { Box, Button, Checkbox, FormControlLabel, FormGroup, Modal, Typography } from "@mui/material";
+import { Box, Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, Modal, Typography } from "@mui/material";
 import React, { useState } from "react";
 import { DJANGO_HOST } from "../utils/consts.js";
 
@@ -58,6 +58,8 @@ const CsvButton = ({
 
     const [chosenColumns, setChosenColumns] = useState(COLUMNS)
     const [onlyVisibleVertices, setOnlyVisibleVertices] = useState(true)
+    const [onlyRepresentatives, setOnlyRepresentatives] = useState(true)
+    const [waitingForResponse, setWaitingForResponse] = useState(false)
 
     const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
         ? DJANGO_HOST + "/api"
@@ -65,7 +67,7 @@ const CsvButton = ({
     
     const [showModal, setShowModal] = useState(false)
 
-    const handleExportClick = async (loadIds: boolean) => {
+    const handleExportClick = async (loadIds: boolean, onlyRepresentatives: boolean) => {
         const filters = {
             pLDDT: pLDDT,
             lengthRange: lengthRange,
@@ -79,10 +81,12 @@ const CsvButton = ({
             goTerm: goTerm,
             ontology: ontology,
             ids: loadIds ? pointIds : [],
-            columnNames: chosenColumns
+            columnNames: chosenColumns,
+            onlyRepresentatives: onlyRepresentatives
         };
 
         try {
+            setWaitingForResponse(true)
             const response = await fetch(`${host}/export_to_tsv`, {
                 method: "POST",
                 headers: {
@@ -104,6 +108,7 @@ const CsvButton = ({
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
+            setWaitingForResponse(false)
             setShowModal(false)
         } catch (error) {
             console.error("Error on fetching:", error);
@@ -163,8 +168,29 @@ const CsvButton = ({
                             onChange={() => setOnlyVisibleVertices(!onlyVisibleVertices)}
                         />
                     </FormGroup>
+                    <FormGroup>
+                        <FormControlLabel 
+                            control={
+                                <Checkbox
+                                    checked={onlyRepresentatives}
+                                    size="small"
+                                />
+                            }
+                            label="Only cluster representatives"
+                            value={onlyRepresentatives}
+                            onChange={() => setOnlyRepresentatives(!onlyRepresentatives)}
+                        />
+                    </FormGroup>
                     <Box sx={{display: 'flex', flexDirection: 'row', justifyContent: 'flex-end'}}>
-                        <Button onClick={() => handleExportClick(onlyVisibleVertices)}>Export</Button>
+                        <Button 
+                            disabled={waitingForResponse} 
+                            onClick={() => handleExportClick(onlyVisibleVertices, onlyRepresentatives)}
+                        >
+                            {waitingForResponse ? 
+                                <CircularProgress size="30px" /> :
+                                <span>Export</span>
+                            }
+                        </Button>
                     </Box>
                 </Box>
             </Modal>
