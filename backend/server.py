@@ -80,7 +80,7 @@ MAPPED_COLUMN_NAMES = {
     "database": "origin",
     "repr_protein_id": "cluster_or_singleton",
     "x": "x",
-    "y": "x",
+    "y": "y",
     "length": "length",
     "afdb_pLDDT": "afdb_pLDDT",
     "superCOG_v10": "superCOG_v10",
@@ -264,6 +264,9 @@ def get_points(
 
     if len(columns) > 0:
         subset = subset[list(map(lambda column: MAPPED_COLUMN_NAMES[column], columns))]
+    
+    if 'length' in subset.columns:
+        subset['length'] = subset['length'].astype('Int64')
         
     logger.info(f"Total get_points processing took {time.time() - total_start_time:.2f}s with {len(subset)} results")
     return subset.to_dict(orient="records")
@@ -472,7 +475,7 @@ async def export_to_tsv(request: Request):
     writer = csv.writer(output, delimiter='\t')
 
     if points and len(points) > 0:
-        header = columnNames
+        header = list(map(lambda column: MAPPED_COLUMN_NAMES[column], columnNames))
         writer.writerow(header)
         for point in points:
             writer.writerow(point.values())

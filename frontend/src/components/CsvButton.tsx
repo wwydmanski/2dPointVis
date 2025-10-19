@@ -1,6 +1,7 @@
-import { Box, Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, Modal, Typography } from "@mui/material";
+import { Box, Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, Modal, Tooltip, Typography } from "@mui/material";
 import React, { useState } from "react";
 import { DJANGO_HOST } from "../utils/consts.js";
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 const CsvButton = ({
   pLDDT,
@@ -57,8 +58,8 @@ const CsvButton = ({
     ]
 
     const [chosenColumns, setChosenColumns] = useState(COLUMNS)
-    const [onlyVisibleVertices, setOnlyVisibleVertices] = useState(true)
-    const [onlyRepresentatives, setOnlyRepresentatives] = useState(true)
+    const [onlyVisibleVertices, setOnlyVisibleVertices] = useState(false)
+    const [onlyRepresentatives, setOnlyRepresentatives] = useState(false)
     const [waitingForResponse, setWaitingForResponse] = useState(false)
 
     const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
@@ -163,7 +164,15 @@ const CsvButton = ({
                                     size="small"
                                 />
                             }
-                            label="Only vertices visible on viewport"
+                            label={
+                                <div style={{display: 'flex', alignItems: 'center', columnGap: 5}}>
+                                    <span>Only vertices visible on viewport</span>
+                                    <Tooltip disableInteractive title="Save only visible points. (Note: by default, not all points are shown.)">
+                                        {/* @ts-ignore */}
+                                        <HelpOutlineIcon fontSize="small" />
+                                    </Tooltip>
+                                </div>
+                            }
                             value={onlyVisibleVertices}
                             onChange={() => setOnlyVisibleVertices(!onlyVisibleVertices)}
                         />
@@ -176,7 +185,15 @@ const CsvButton = ({
                                     size="small"
                                 />
                             }
-                            label="Only cluster representatives"
+                            label={
+                                <div style={{display: 'flex', alignItems: 'center', columnGap: 5}}>
+                                    <span>Only cluster representatives</span>
+                                    <Tooltip disableInteractive title="Save only the cluster representatives. When unchecked, cluster members are also saved, with their coordinates identical to those of their representatives. (Note: This may introduce bias in quantitative analyses, as the visualization is based solely on cluster representatives.)">
+                                        {/* @ts-ignore */}
+                                        <HelpOutlineIcon fontSize="small" />
+                                    </Tooltip>
+                                </div>
+                            }
                             value={onlyRepresentatives}
                             onChange={() => setOnlyRepresentatives(!onlyRepresentatives)}
                         />
