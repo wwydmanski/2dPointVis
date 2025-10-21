@@ -465,7 +465,7 @@ async def export_to_tsv(request: Request):
         goterm=goTerm,
         ontology=ontology,
         taxonomy=",".join(map(str, taxonomy)),
-        number_of_points=10000,
+        number_of_points=10000000,
         ids=",".join(ids),
         columns=columnNames,
         onlyRepresentatives=onlyRepresentatives
