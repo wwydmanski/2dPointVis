@@ -21,7 +21,7 @@ const ProteinCard = (
         width: "50%",
         }}>
             <Typography variant="h6" gutterBottom>
-                Representative protein
+                Selected protein
             </Typography>
             <Typography variant="body2" component="div">
                 {

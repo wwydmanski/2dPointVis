@@ -75,10 +75,7 @@ function App() {
       .then(res => res.json())
       .then(data => {
         datum.others = data[0].others[0];
-        if (datum.protein == datum.clean_name)
-          setSelectedNonRepresentative(null);
-        else
-          setSelectedNonRepresentative(datum.protein);
+        setSelectedNonRepresentative(datum.protein);
         setData(datum);
         setSelectedItem(datum);
       })

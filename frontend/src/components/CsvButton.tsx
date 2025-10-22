@@ -35,29 +35,29 @@ const CsvButton = ({
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 400,
+        width: 500,
         bgcolor: 'background.paper',
         border: '2px solid #000',
         boxShadow: 24,
         p: 4,
     };
 
-    const COLUMNS = [
-        "protein_id",
-        "database",
-        "repr_protein_id",
-        "x",
-        "y",
-        "length",
-        "afdb_pLDDT",
-        "superCOG_v10",
-        "superCOG_v11",
-        "taxonomy",
-        "origin",
-        "url"
-    ]
+    const COLUMNS = {
+        "Protein ID (protein_id)": "protein_id",
+        "Database (database)": "database",
+        "Cluster representative ID (repr_protein_id)": "repr_protein_id",
+        "Horizontal coordinate (x)": "x",
+        "Vertical coordinate (y)": "y",
+        "Protein length (length)": "length",
+        "AFDB protein pLDDT (afdb_pLDDT)": "afdb_pLDDT",
+        "superCOG predicted by deepFRI v1.0 (superCOG_v10)": "superCOG_v10",
+        "superCOG predicted by deepFRI v1.1 (superCOG_v11)": "superCOG_v11",
+        "Taxonomic category (taxonomy)": "taxonomy",
+        "Sequence origin (origin)": "origin",
+        "URL (url)": "url"
+    }
 
-    const [chosenColumns, setChosenColumns] = useState(COLUMNS)
+    const [chosenColumns, setChosenColumns] = useState(Object.values(COLUMNS))
     const [onlyVisibleVertices, setOnlyVisibleVertices] = useState(false)
     const [onlyRepresentatives, setOnlyRepresentatives] = useState(false)
     const [waitingForResponse, setWaitingForResponse] = useState(false)
@@ -144,7 +144,7 @@ const CsvButton = ({
                                         
                                     }
                                     // @ts-ignore
-                                    label={<Typography variant="body2">{COLUMNS[column]}</Typography>}
+                                    label={<Typography variant="body2">{column}</Typography>}
                                     value={column}
                                     onChange={(_event, checked: boolean) => {
                                         // @ts-ignore

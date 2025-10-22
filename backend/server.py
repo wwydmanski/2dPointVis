@@ -52,7 +52,7 @@ DATA_FULL.loc[
 ] = -1
 DATA_FULL["clean_name"] = DATA_FULL["protein"].str.replace("AF-", "").str.replace("-model_v4", "").str.replace("-F1", "")
 DATA_FULL["representative"] = DATA_FULL["clean_name"]
-DATA = DATA_FULL.dropna(subset=["x", "y"])
+DATA = DATA_FULL[DATA_FULL['cluster_or_singleton'] == DATA_FULL['protein']]
 
 PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
 GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
