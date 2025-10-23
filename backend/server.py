@@ -4,6 +4,7 @@ from fastapi import Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.encoders import jsonable_encoder
 import uvicorn
 import pandas as pd
 from loguru import logger
@@ -412,15 +413,16 @@ async def name_search(name: str):
         cluster_lower = cluster.lower()
         if cluster_lower in CLUSTER_TO_DATA:
             data_ = CLUSTER_TO_DATA[cluster_lower].to_dict()
+            data_["chosen_protein"] = DATA_FULL[DATA_FULL["protein"] == name].iloc[0].fillna("").to_dict()
             data_["representative"] = cluster
             data_["protein"] = found_name
             other_protein_names = REPRESENTATIVE_MAPPING.loc[cluster, "Protein"]
             other_protein_urls = [DATA_FULL.loc[protein, "url"] for protein in other_protein_names]
-            data_["others"] = [({"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls))]
+            data_["others"] = [({"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls))] if cluster == found_name else [{"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls)]
             subset.append(data_)
     
     logger.info(f"Processing matching names took {time.time() - processing_start_time:.2f}s")
-    return subset
+    return jsonable_encoder(subset)
 
 
 @api_router.get("/goterm_autocomplete")

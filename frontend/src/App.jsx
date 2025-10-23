@@ -190,6 +190,7 @@ function App() {
                     setSelectedNonRepresentative={setSelectedNonRepresentative}
                     renderProtein={renderProtein}
                     host={host}
+                    setData={setData}
                   />
                 ) : <Box sx={{ width: "50%" }}></Box>}
               </Stack>

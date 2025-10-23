@@ -3,12 +3,13 @@ import { Card, Typography, Box, Link } from '@mui/material';
 import LaunchIcon from '@mui/icons-material/Launch';
 
 const ProteinsInClusterCard = (
-    { data, selectedNonRepresentative, setSelectedNonRepresentative, renderProtein, host }: {
+    { data, selectedNonRepresentative, setSelectedNonRepresentative, renderProtein, host, setData }: {
         data: any,
         selectedNonRepresentative: string,
         setSelectedNonRepresentative: (name: string) => void,
         renderProtein: (pdb_loc: string) => void,
-        host?: string
+        host?: string,
+        setData: (data: any) => void
     }
 ) => {
     return (
@@ -46,6 +47,12 @@ const ProteinsInClusterCard = (
                     <Box
                     onClick={() => {
                         setSelectedNonRepresentative(protein.name);
+                        fetch(`${host}/name_search?name=${protein.name}`)
+                        .then(res => res.json())
+                        .then(newData => {
+                            newData[0].chosen_protein.others = data.others;
+                            setData(newData[0].chosen_protein);
+                        })
 
                         fetch(`${host}/pdb_loc/${protein.name}`)
                         .then(res => res.json())
