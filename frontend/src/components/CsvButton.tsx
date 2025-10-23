@@ -61,6 +61,7 @@ const CsvButton = ({
     const [onlyVisibleVertices, setOnlyVisibleVertices] = useState(false)
     const [onlyRepresentatives, setOnlyRepresentatives] = useState(false)
     const [waitingForResponse, setWaitingForResponse] = useState(false)
+    const [pollingCounter, setPollingCounter] = useState(0)
 
     const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
         ? DJANGO_HOST + "/api"
@@ -86,34 +87,32 @@ const CsvButton = ({
             onlyRepresentatives: onlyRepresentatives
         };
 
-        try {
-            setWaitingForResponse(true)
-            const response = await fetch(`${host}/export_to_tsv`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(filters)
-            });
+        setWaitingForResponse(true);
 
-            if (!response.ok) {
-                throw new Error(`Błąd serwera: ${response.status}`);
+        const startResponse = await fetch(`${host}/export_to_tsv/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({filters})
+        });
+
+        const { job_id } = await startResponse.json();
+
+        const pollStatus = async (pollingCounter: number) => {
+            const res = await fetch(`${host}/export_to_tsv/status/${job_id}`);
+            const data = await res.json();
+            if (data.status === "ready") {
+                window.open(`${host}/export_to_tsv/download/${job_id}`, "_blank");
+                setWaitingForResponse(false);
+                setPollingCounter(0)
+                setShowModal(false);
+            } else {
+                console.log(pollingCounter)
+                setPollingCounter(pollingCounter + 1)
+                setTimeout(() => pollStatus(pollingCounter + 1), 2000);
             }
+        };
 
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "data.tsv";
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-            setWaitingForResponse(false)
-            setShowModal(false)
-        } catch (error) {
-            console.error("Error on fetching:", error);
-        }
+        pollStatus(0);
     };
 
 
@@ -208,6 +207,12 @@ const CsvButton = ({
                                 <span>Export</span>
                             }
                         </Button>
+                    </Box>
+                    <Box>
+                        {pollingCounter > 2 ? 
+                            <div style={{fontSize: "small"}}>Fetching data may take longer due to large size of blob. Please wait...</div>
+                            : null
+                        }
                     </Box>
                 </Box>
             </Modal>

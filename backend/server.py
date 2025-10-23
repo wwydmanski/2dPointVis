@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, Response, BackgroundTasks
 from pydantic import BaseModel
 from fastapi import Request
 from fastapi.middleware.gzip import GZipMiddleware
@@ -21,6 +21,9 @@ import re
 import tqdm
 import csv
 import io
+import uuid
+from typing import Dict, Any
+from pathlib import Path
 
 # Read DATA_PATH from environment variable
 DATA_PATH = os.environ.get("DATA_PATH")
@@ -150,6 +153,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Length", "Content-Disposition"]
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -436,10 +440,12 @@ async def goterm_autocomplete(goterm: str):
     logger.info(f"GO term autocomplete for '{goterm}' took {time.time() - start_time:.2f}s")
     return subset.to_dict(orient="records")
 
-@api_router.post("/export_to_tsv")
-async def export_to_tsv(request: Request):
-    body = await request.json()
+EXPORT_DIR = Path("exports")
+EXPORT_DIR.mkdir(exist_ok=True)
 
+jobs: Dict[str, Dict[str, Any]] = {}
+
+def generate_tsv(job_id: str, body: dict):
     pLDDT = body.get("pLDDT", [])
     lengthRange = body.get("lengthRange", [])
     taxonomy = body.get("taxonomy", [])
@@ -452,8 +458,8 @@ async def export_to_tsv(request: Request):
     y1 = body.get("y1")
     ontology = body.get("ontology")
     goTerm = body.get("goTerm")
-    ids = body.get("ids")
-    onlyRepresentatives=body.get("onlyRepresentatives")
+    ids = body.get("ids", [])
+    onlyRepresentatives = body.get("onlyRepresentatives", False)
 
     points = get_points(
         x0=float(x0),
@@ -473,19 +479,64 @@ async def export_to_tsv(request: Request):
         onlyRepresentatives=onlyRepresentatives
     )
 
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter='\t')
+    file_path = EXPORT_DIR / f"{job_id}.tsv"
+    with file_path.open("w", newline='') as f:
+        writer = csv.writer(f, delimiter='\t')
+        if points and len(points) > 0:
+            header = [MAPPED_COLUMN_NAMES[col] for col in columnNames]
+            writer.writerow(header)
+            for point in points:
+                writer.writerow(point.values())
 
-    if points and len(points) > 0:
-        header = list(map(lambda column: MAPPED_COLUMN_NAMES[column], columnNames))
-        writer.writerow(header)
-        for point in points:
-            writer.writerow(point.values())
+    jobs[job_id]["status"] = "ready"
+    jobs[job_id]["file_path"] = str(file_path)
 
-    response = Response(output.getvalue(), media_type='text/tab-separated-values')
-    response.headers['Content-Disposition'] = 'attachment; filename=data.tsv'
+@api_router.post("/export_to_tsv/start")
+async def start_export(request: Request, background_tasks: BackgroundTasks):
+    body = await request.json()  # body["filters"] will have your filters object
+    filters = body.get("filters")
+    if not filters:
+        return JSONResponse(status_code=400, content={"error": "Missing filters"})
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing"}
+    background_tasks.add_task(generate_tsv, job_id, filters)
+    return {"job_id": job_id, "status": "processing"}
+
+
+@api_router.get("/export_to_tsv/status/{job_id}")
+async def export_status(job_id: str):
+    job = jobs.get(job_id)
+    if not job:
+        return JSONResponse(status_code=404, content={"error": "Job not found"})
+    return job
+
+
+@api_router.get("/export_to_tsv/download/{job_id}")
+async def export_download(job_id: str, background_tasks: BackgroundTasks):   
+    job = jobs.get(job_id)
+    if not job or job.get("status") != "ready":
+        return JSONResponse(status_code=404, content={"error": "File not ready"})
+    
+    file_path = job["file_path"]
+    file_size = os.path.getsize(file_path)
+    response = FileResponse(
+        file_path,
+        filename="data.tsv",
+        media_type="text/tab-separated-values",
+        headers={"Content-Length": str(file_size)}
+    )
+
+    # Schedule file deletion after sending response
+    def delete_file(path):
+        try:
+            os.remove(path)
+            print(f"Deleted {path}")
+        except Exception as e:
+            print(f"Failed to delete {path}: {e}")
+
+    background_tasks.add_task(delete_file, file_path)
+
     return response
-
 
 
 @api_router.websocket("/ws/points")
