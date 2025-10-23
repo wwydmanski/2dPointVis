@@ -56,7 +56,8 @@ DATA_FULL.loc[
 ] = -1
 DATA_FULL["clean_name"] = DATA_FULL["protein"].str.replace("AF-", "").str.replace("-model_v4", "").str.replace("-F1", "")
 DATA_FULL["representative"] = DATA_FULL["clean_name"]
-DATA = DATA_FULL[DATA_FULL['cluster_or_singleton'] == DATA_FULL['protein']]
+DATA_FULL.set_index("protein")
+DATA = DATA_FULL[DATA_FULL['cluster_or_singleton'] == DATA_FULL.index]
 
 PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
 GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
@@ -301,7 +302,7 @@ async def points(
 @api_router.get("/pdb_loc/{protein:str}")
 async def pdb_loc(protein: str):
     # return DATA_FULL.loc[protein, "pdb_loc"]
-    row = DATA_FULL[DATA_FULL["protein"] == protein]
+    row = DATA_FULL[DATA_FULL.index == protein]
     if len(row) == 0:
         return None
     return row["pdb_loc"].values[0]
@@ -417,7 +418,7 @@ async def name_search(name: str):
         cluster_lower = cluster.lower()
         if cluster_lower in CLUSTER_TO_DATA:
             data_ = CLUSTER_TO_DATA[cluster_lower].to_dict()
-            data_["chosen_protein"] = DATA_FULL[DATA_FULL["protein"] == name].iloc[0].fillna("").to_dict()
+            data_["chosen_protein"] = DATA_FULL.loc[name].fillna("").to_dict()
             data_["representative"] = cluster
             data_["protein"] = found_name
             other_protein_names = REPRESENTATIVE_MAPPING.loc[cluster, "Protein"]
