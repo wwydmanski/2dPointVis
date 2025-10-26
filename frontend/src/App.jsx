@@ -74,7 +74,7 @@ function App() {
     fetch(`${host}/name_search?name=${datum.protein}`)
       .then(res => res.json())
       .then(data => {
-        datum.others = data[0].others[0];
+        datum.others = data[0].others;
         setSelectedNonRepresentative(datum.protein);
         setData(datum);
         setSelectedItem(datum);

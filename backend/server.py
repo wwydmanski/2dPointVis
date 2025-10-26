@@ -423,9 +423,8 @@ async def name_search(name: str):
             data_["protein"] = found_name
             other_protein_names = REPRESENTATIVE_MAPPING.loc[cluster, "Protein"]
             other_protein_urls = [DATA_FULL.loc[protein, "url"] for protein in other_protein_names]
-            data_["others"] = [({"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls))] if cluster == found_name else [{"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls)]
+            data_["others"] = [{"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls)]
             subset.append(data_)
-    
     logger.info(f"Processing matching names took {time.time() - processing_start_time:.2f}s")
     return jsonable_encoder(subset)
 
@@ -487,7 +486,15 @@ def generate_tsv(job_id: str, body: dict):
             header = [MAPPED_COLUMN_NAMES[col] for col in columnNames]
             writer.writerow(header)
             for point in points:
-                writer.writerow(point.values())
+                cleaned_row = []
+                for key, value in point.items():
+                    if key in ("x", "y"):
+                        cleaned_row.append(value)
+                    elif isinstance(value, (int, float)) and value in (-1, -1.0):
+                        cleaned_row.append("NaN")
+                    else:
+                        cleaned_row.append(value)
+                writer.writerow(cleaned_row)
 
     jobs[job_id]["status"] = "ready"
     jobs[job_id]["file_path"] = str(file_path)
