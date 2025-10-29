@@ -193,35 +193,35 @@ def get_points(
 
     if ids:
         ids = ids.split(",")
-        conditions.append(DATA["clean_name"].isin(ids))
+        conditions.append(DATA_FULL["clean_name"].isin(ids))
 
     if len(types) > 0:
         types = types.split(",")
-        conditions.append(DATA["origin"].isin(types))
+        conditions.append(DATA_FULL["origin"].isin(types))
     
     if lengthRange:
         lengthRange = lengthRange.split(",")
         lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
         conditions.append(
-            (DATA.length >= lengthRange[0]) & (DATA.length <= lengthRange[1])
+            (DATA_FULL.length >= lengthRange[0]) & (DATA_FULL.length <= lengthRange[1])
         )
 
     if pLDDT:
         pLDDT = pLDDT.split(",")
         pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
-        minus_one = DATA["afdb_pLDDT"] == -1
-        larger = DATA["afdb_pLDDT"] <= pLDDT[1]
-        smaller = DATA["afdb_pLDDT"] >= pLDDT[0]
+        minus_one = DATA_FULL["afdb_pLDDT"] == -1
+        larger = DATA_FULL["afdb_pLDDT"] <= pLDDT[1]
+        smaller = DATA_FULL["afdb_pLDDT"] >= pLDDT[0]
 
         conditions.append((minus_one | (larger & smaller)))
 
     if supercog:
         supercog = supercog.split(",")
-        conditions.append(DATA["superCOG_v10"].isin(supercog))
+        conditions.append(DATA_FULL["superCOG_v10"].isin(supercog))
         
     if taxonomy:
         taxonomy_split = taxonomy.split(",")
-        conditions.append(DATA["taxonomy"].isin(taxonomy_split))
+        conditions.append(DATA_FULL["taxonomy"].isin(taxonomy_split))
         
     logger.info(f"Goterm: {goterm}, ontology: {ontology}, taxonomy: {taxonomy}")
     if goterm:
@@ -242,31 +242,29 @@ def get_points(
             logger.info(f"Loading GO term data took {time.time() - cache_time:.2f}s")
             
         intersect_time = time.time()
-        names = set(DATA["protein"])
+        names = set(DATA_FULL["protein"])
         names = names.intersection(GOTERMS_CACHE[goterm])
-        conditions.append(DATA["protein"].isin(names))
+        conditions.append(DATA_FULL["protein"].isin(names))
         logger.info(f"Intersection took {time.time() - intersect_time:.2f}s")
         logger.info(f"Total GO term processing took {time.time() - start_time:.2f}s")
         
     filter_start_time = time.time()
-    mask = ((DATA.x >= x0) & (DATA.x <= x1) & (DATA.y >= y0) & (DATA.y <= y1))
+    mask = ((DATA_FULL.x >= x0) & (DATA_FULL.x <= x1) & (DATA_FULL.y >= y0) & (DATA_FULL.y <= y1))
+
+    if onlyRepresentatives:
+        conditions.append(DATA_FULL['cluster_or_singleton'] == DATA_FULL['protein'])
 
     # Add all other conditions to the mask at once
     if conditions:
         for cond in conditions:
             mask &= cond
         
-    subset = DATA[mask]
+    subset = DATA_FULL[mask]
 
     logger.info(f"Initial spatial filtering took {time.time() - filter_start_time:.2f}s")
     
     if len(subset) > number_of_points:
         subset = subset[:number_of_points]
-    
-    if not onlyRepresentatives:
-        representatives = subset['cluster_or_singleton'].unique()
-        filtered = DATA_FULL[DATA_FULL['cluster_or_singleton'].isin(representatives)]
-        subset = filtered
 
     if len(columns) > 0:
         subset = subset[list(map(lambda column: MAPPED_COLUMN_NAMES[column], columns))]
@@ -394,7 +392,18 @@ async def protein_goterm(protein: str):
 
 
 @api_router.get("/name_search")
-async def name_search(name: str):
+async def name_search(
+    name: str,
+    x0: float = -15,
+    x1: float = 15,
+    y0: float = -25,
+    y1: float = 15,
+    types: str = "",
+    lengthRange: str = "",
+    pLDDT: str = "",    
+    supercog: str = "",
+    taxonomy: str = ""
+):
     start_time = time.time()
     
     # Use cached regex search for faster matching
@@ -411,6 +420,23 @@ async def name_search(name: str):
     logger.info(f"Finding matching names took {time.time() - start_time:.2f}s")
     
     processing_start_time = time.time()
+
+    if pLDDT:
+        pLDDT = pLDDT.split(",")
+        pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
+    
+    if supercog:
+        supercog = supercog.split(",")
+        
+    if taxonomy:
+        taxonomy_split = taxonomy.split(",")
+    
+    if len(types) > 0:
+        types = types.split(",")
+    
+    if lengthRange:
+        lengthRange = lengthRange.split(",")
+        lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
     
     # Use precomputed data instead of filtering DATA again
     subset = []
@@ -421,9 +447,18 @@ async def name_search(name: str):
             data_["chosen_protein"] = DATA_FULL.loc[name].fillna("").to_dict()
             data_["representative"] = cluster
             data_["protein"] = found_name
-            other_protein_names = REPRESENTATIVE_MAPPING.loc[cluster, "Protein"]
-            other_protein_urls = [DATA_FULL.loc[protein, "url"] for protein in other_protein_names]
-            data_["others"] = [{"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls)]
+            other_proteins_data = DATA_FULL[DATA_FULL["cluster_or_singleton"] == cluster]
+            other_values = []
+            for index, row in other_proteins_data.iterrows():
+                if not types or (row.x >= x0 and row.x <= x1 and row.y >= y0 and row.y < y1 and row.length >= lengthRange[0] and row.length <= lengthRange[1] \
+                and row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1] and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
+                and row["origin"] in types):
+                    other_values.append({"name": row["clean_name"], "url": row["url"]})
+            for i, row in enumerate(other_values):
+                if row["name"] == cluster:
+                    other_values.insert(0, other_values.pop(i))
+                    break
+            data_["others"] = other_values
             subset.append(data_)
     logger.info(f"Processing matching names took {time.time() - processing_start_time:.2f}s")
     return jsonable_encoder(subset)

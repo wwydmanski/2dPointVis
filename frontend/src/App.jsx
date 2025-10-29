@@ -71,7 +71,20 @@ function App() {
       return
     }
 
-    fetch(`${host}/name_search?name=${datum.protein}`)
+    const params = new URLSearchParams({
+      name: datum.protein,
+      x0: viewport[0],
+      x1: viewport[1],
+      y0: viewport[2],
+      y1: viewport[3],
+      types: selectedSources.join(","),
+      lengthRange: `${lengthRange[0]},${lengthRange[1]}`,
+      pLDDT: `${pLDDT[0]},${pLDDT[1]}`,
+      supercog: supercog.join(","),
+      taxonomy: taxonomy.join(",")
+    });
+
+    fetch(`${host}/name_search?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
         datum.others = data[0].others;
