@@ -186,42 +186,43 @@ def get_points(
     number_of_points: int = 1000,
     ids = "",
     columns = [],
-    onlyRepresentatives=True
+    onlyRepresentatives=True,
+    source=DATA
 ):
     total_start_time = time.time()
     conditions = []
 
     if ids:
         ids = ids.split(",")
-        conditions.append(DATA_FULL["clean_name"].isin(ids))
+        conditions.append(source["clean_name"].isin(ids))
 
     if len(types) > 0:
         types = types.split(",")
-        conditions.append(DATA_FULL["origin"].isin(types))
+        conditions.append(source["origin"].isin(types))
     
     if lengthRange:
         lengthRange = lengthRange.split(",")
         lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
         conditions.append(
-            (DATA_FULL.length >= lengthRange[0]) & (DATA_FULL.length <= lengthRange[1])
+            (source.length >= lengthRange[0]) & (source.length <= lengthRange[1])
         )
 
     if pLDDT:
         pLDDT = pLDDT.split(",")
         pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
-        minus_one = DATA_FULL["afdb_pLDDT"] == -1
-        larger = DATA_FULL["afdb_pLDDT"] <= pLDDT[1]
-        smaller = DATA_FULL["afdb_pLDDT"] >= pLDDT[0]
+        minus_one = source["afdb_pLDDT"] == -1
+        larger = source["afdb_pLDDT"] <= pLDDT[1]
+        smaller = source["afdb_pLDDT"] >= pLDDT[0]
 
         conditions.append((minus_one | (larger & smaller)))
 
     if supercog:
         supercog = supercog.split(",")
-        conditions.append(DATA_FULL["superCOG_v10"].isin(supercog))
+        conditions.append(source["superCOG_v10"].isin(supercog))
         
     if taxonomy:
         taxonomy_split = taxonomy.split(",")
-        conditions.append(DATA_FULL["taxonomy"].isin(taxonomy_split))
+        conditions.append(source["taxonomy"].isin(taxonomy_split))
         
     logger.info(f"Goterm: {goterm}, ontology: {ontology}, taxonomy: {taxonomy}")
     if goterm:
@@ -242,24 +243,24 @@ def get_points(
             logger.info(f"Loading GO term data took {time.time() - cache_time:.2f}s")
             
         intersect_time = time.time()
-        names = set(DATA_FULL["protein"])
+        names = set(source["protein"])
         names = names.intersection(GOTERMS_CACHE[goterm])
-        conditions.append(DATA_FULL["protein"].isin(names))
+        conditions.append(source["protein"].isin(names))
         logger.info(f"Intersection took {time.time() - intersect_time:.2f}s")
         logger.info(f"Total GO term processing took {time.time() - start_time:.2f}s")
         
     filter_start_time = time.time()
-    mask = ((DATA_FULL.x >= x0) & (DATA_FULL.x <= x1) & (DATA_FULL.y >= y0) & (DATA_FULL.y <= y1))
+    mask = ((source.x >= x0) & (source.x <= x1) & (source.y >= y0) & (source.y <= y1))
 
     if onlyRepresentatives:
-        conditions.append(DATA_FULL['cluster_or_singleton'] == DATA_FULL['protein'])
+        conditions.append(source['cluster_or_singleton'] == source['protein'])
 
     # Add all other conditions to the mask at once
     if conditions:
         for cond in conditions:
             mask &= cond
         
-    subset = DATA_FULL[mask]
+    subset = source[mask]
 
     logger.info(f"Initial spatial filtering took {time.time() - filter_start_time:.2f}s")
     
@@ -511,7 +512,8 @@ def generate_tsv(job_id: str, body: dict):
         number_of_points=10000000,
         ids=",".join(ids),
         columns=columnNames,
-        onlyRepresentatives=onlyRepresentatives
+        onlyRepresentatives=onlyRepresentatives,
+        source=DATA_FULL
     )
 
     file_path = EXPORT_DIR / f"{job_id}.tsv"
