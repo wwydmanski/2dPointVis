@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import './App.css'
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import Card from '@mui/material/Card';
-import { Autocomplete, Box, CardContent, Checkbox, FormControlLabel, FormGroup, MenuItem, Select, Slider, Stack, TextField, Typography, Link, Fade, Switch, CircularProgress, Button } from '@mui/material';
-import { SOURCES, SOURCE_MAPPING, ANNOTATION_MAPPING, TAXONOMY_MAPPING, X_START, SearchMode, DJANGO_HOST } from './utils/consts';
+import { debounce } from 'lodash';
+import { Box, Stack, Fade, CircularProgress } from '@mui/material';
+import { SOURCES, SOURCE_MAPPING, ANNOTATION_MAPPING, TAXONOMY_MAPPING, SearchMode, DJANGO_HOST } from './utils/consts';
 import renderProtein from './utils/renderProtein';
 import Chart from './components/Chart';
 import Search from './components/Search';
@@ -13,7 +14,6 @@ import GoTermDetails from './components/GoTermDetails';
 import Filters from './components/Filters';
 import BottomMenu from './components/BottomMenu';
 import { theme } from './utils/theme';
-import { set } from 'lodash';
 
 function App() {
   const [data, setData] = React.useState(null);
@@ -63,42 +63,50 @@ function App() {
     }
   }, [data, selectedNonRepresentative]); // Now triggered when data changes
 
-  function onClick(datum) {
-    if (datum === null || datum === undefined) {
-      setSelectedItem(null)
-      setData(null)
-      renderProtein(null)
-      return
-    }
+  const onClick = useMemo(() => {
+    const debouncedHandler = debounce((datum) => {
+      if (datum === null || datum === undefined) {
+        setSelectedItem(null);
+        setData(null);
+        renderProtein(null);
+        return;
+      }
 
-    const params = new URLSearchParams({
-      name: datum.protein,
-      x0: viewport[0],
-      x1: viewport[1],
-      y0: viewport[2],
-      y1: viewport[3],
-      types: selectedSources.join(","),
-      lengthRange: `${lengthRange[0]},${lengthRange[1]}`,
-      pLDDT: `${pLDDT[0]},${pLDDT[1]}`,
-      supercog: supercog.join(","),
-      taxonomy: taxonomy.join(",")
-    });
+      const params = new URLSearchParams({
+        name: datum.protein,
+        x0: viewport[0],
+        x1: viewport[1],
+        y0: viewport[2],
+        y1: viewport[3],
+        types: selectedSources.join(","),
+        lengthRange: `${lengthRange[0]},${lengthRange[1]}`,
+        pLDDT: `${pLDDT[0]},${pLDDT[1]}`,
+        supercog: supercog.join(","),
+        taxonomy: taxonomy.join(","),
+      });
 
-    fetch(`${host}/name_search?${params.toString()}`)
-      .then(res => res.json())
-      .then(data => {
-        datum.others = data[0].others;
-        setSelectedNonRepresentative(datum.protein);
-        setData(datum);
-        setSelectedItem(datum);
-      })
-      
+      // Fetch the main data
+      fetch(`${host}/name_search?${params.toString()}`)
+        .then((res) => res.json())
+        .then((data) => {
+          datum.others = data[0].others;
+          setSelectedNonRepresentative(datum.protein);
+          setData(datum);
+          setSelectedItem(datum);
+        });
+
+      // Fetch PDB data
       fetch(`${host}/pdb_loc/${datum.protein}`)
-        .then(res => res.json())
-        .then(pdb_loc => {
+        .then((res) => res.json())
+        .then((pdb_loc) => {
           renderProtein(pdb_loc);
         });
-  }
+    }, 2000, { leading: true, trailing: true });
+
+    return (datum) => {
+      debouncedHandler(datum);
+    };
+  }, []);
 
   function handleSearching(foundItem) {
     setSelectedItem(foundItem);
@@ -153,6 +161,7 @@ function App() {
           taxonomy={taxonomy}
           zoomedItem={zoomedItem}
           setViewport={setViewport}
+          viewport={viewport}
           setPointIds={setPointIds}
         />
         <Stack direction="column" spacing={2} sx={{

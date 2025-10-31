@@ -7,7 +7,7 @@ import { colorMap } from '../utils/consts';
 import hexToRgba from '../utils/hexToRgba';
 import graphConfig from '../utils/graphConfig';
 
-export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport, setPointIds }) {
+export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport, viewport, setPointIds }) {
   // Main state
   const [currentData, setCurrentData] = useState(undefined);
   const [visible, setVisible] = useState({
@@ -87,24 +87,33 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     graphInstanceRef.current.render();
   };
 
+  const viewportRef = useRef(viewport);
+  useEffect(() => {
+    viewportRef.current = viewport;
+  }, [viewport]);
+
   const zoomCallback = useCallback((zoomEvent) => {
     if (!graphInstanceRef.current) return;
+    const [x0, x1, y0, y1] = viewportRef.current
 
     const canvasWidth = graphInstanceRef.current.canvas.width;
     const canvasHeight = graphInstanceRef.current.canvas.height;
 
     const [left, top] = graphInstanceRef.current.screenToSpacePosition([0, 0]);
     const [right, bottom] = graphInstanceRef.current.screenToSpacePosition([canvasWidth, canvasHeight]);
+    if(x0 !== left || x1 !== right || y0 !== bottom || y1 !== top) {
+      setVisible({
+        x: { min: left, max: right },
+        y: { min: bottom, max: top }
+      });
 
-    setVisible({
-      x: { min: left, max: right },
-      y: { min: bottom, max: top }
-    });
+      setViewport([left, right, bottom, top])
 
-    setViewport([left, right, bottom, top])
+      setViewportChanged(true);
+    }
 
-    setViewportChanged(true);
-  }, []);
+    
+  });
 
   // Initialize graph instance
   useEffect(() => {
@@ -202,14 +211,13 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     });
   }, [
     visible, selectedType, lengthRange, pLDDT, supercog, goTerm, aspect, taxonomy,
-    viewportChanged, previousFilters, debouncedSendMessage
+    viewportChanged, previousFilters
   ]);
 
   useEffect(() => {
     if(foundItem && graphInstanceRef.current && currentData) {
       graphInstanceRef.current.unselectPoints();
       const nextSizes = currentData.map((_) => 3);
-      selectionCallback(foundItem);
       currentData.forEach((item, index) => {
         if (item["clean_name"] === foundItem["clean_name"]) {
           graphInstanceRef.current.selectPointByIndex(index);
