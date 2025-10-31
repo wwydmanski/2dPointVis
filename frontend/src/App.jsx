@@ -85,14 +85,15 @@ function App() {
         taxonomy: taxonomy.join(","),
       });
 
+      setSelectedNonRepresentative(datum.protein);
+      setSelectedItem(datum);
+
       // Fetch the main data
       fetch(`${host}/name_search?${params.toString()}`)
         .then((res) => res.json())
         .then((data) => {
           datum.others = data[0].others;
-          setSelectedNonRepresentative(datum.protein);
           setData(datum);
-          setSelectedItem(datum);
         });
 
       // Fetch PDB data
