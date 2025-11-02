@@ -392,6 +392,26 @@ async def protein_goterm(protein: str):
         return {"error": f"Error processing GO terms: {str(e)}"}
 
 
+@api_router.get("/find_proteins_by_name")
+async def find_proteins_by_name(name: str):
+    start_time = time.time()
+    
+    # Use cached regex search for faster matching
+    matching_keys = search_proteins(name)
+    
+    if not matching_keys:
+        return []
+    
+    # Get original indices
+    original_indices = [PROTEIN_INDEX_MAP[key] for key in matching_keys[:10]]
+    
+    # Fast lookup using iloc
+    all_matching = REVERSE_REPRESENTATIVE_MAPPING.loc[original_indices]
+    logger.info(f"Finding matching names took {time.time() - start_time:.2f}s")
+
+    return original_indices
+
+
 @api_router.get("/name_search")
 async def name_search(
     name: str,
@@ -452,7 +472,7 @@ async def name_search(
             other_values = []
             for index, row in other_proteins_data.iterrows():
                 if not types or (row.x >= x0 and row.x <= x1 and row.y >= y0 and row.y < y1 and row.length >= lengthRange[0] and row.length <= lengthRange[1] \
-                and row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1] and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
+                and (row["afdb_pLDDT"] == "" or row["afdb_pLDDT"] == -1 or (row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1])) and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
                 and row["origin"] in types):
                     other_values.append({"name": row["clean_name"], "url": row["url"]})
             for i, row in enumerate(other_values):

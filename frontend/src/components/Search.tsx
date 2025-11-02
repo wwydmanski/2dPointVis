@@ -29,7 +29,8 @@ const Search = ({
     onClick: (item: any) => void,
     host: string
 } ) => {
-    const nameSearchUrl = `${host}/name_search`;
+    const findProteinsByNameUrl = `${host}/find_proteins_by_name`;
+    const nameSearchUrl = `${host}/name_search`
     const goTermSearchUrl = `${host}/goterm_autocomplete`;
 
     return(
@@ -51,16 +52,20 @@ const Search = ({
                     renderInput={(params: any) => <TextField {...params} label="Search by name" />}
                     getOptionLabel={(option: any) => option.protein}
                     onChange={(e: any, value: any) => {
-                    if (value) {
-                        setSelectedItem(value);
-                        onClick(value);
-                    }
+                        if (value && value['protein']) {
+                            fetch(`${nameSearchUrl}?name=${value['protein']}`)
+                                .then(res => res.json())
+                                .then(newData => {
+                                    setSelectedItem(newData[0].chosen_protein);
+                                    onClick(newData[0].chosen_protein);
+                                })
+                        }
                     }}
                     onInputChange={(e: any, value: any) => {
-                    fetch(`${nameSearchUrl}?name=${value}`)
+                    fetch(`${findProteinsByNameUrl}?name=${value}`)
                         .then(res => res.json())
                         .then(data => {
-                        setAutocomplete(data);
+                            setAutocomplete(data.map((e: any) => ({ "protein": e})));
                         });
                     }}
                 />
