@@ -1,4 +1,4 @@
-import { Fade, Card, Autocomplete, TextField, Stack, Typography, Switch } from '@mui/material';
+import { Fade, Card, Autocomplete, TextField, Stack, Typography, Switch, RadioGroup, FormControlLabel, Radio } from '@mui/material';
 import { SOURCES, SOURCE_MAPPING, ANNOTATION_MAPPING, TAXONOMY_MAPPING, X_START, SearchMode, DJANGO_HOST } from '../utils/consts.js';
 import React from 'react';
 
@@ -44,6 +44,8 @@ const Search = ({
     const findProteinsByNameUrl = `${host}/find_proteins_by_name`;
     const nameSearchUrl = `${host}/name_search`
     const goTermSearchUrl = `${host}/goterm_autocomplete`;
+    const findOriginsUrl = `${host}/find_origins`
+
     const params = (name: string) => new URLSearchParams({
         name: name,
         x0: viewport[0].toString(),
@@ -56,6 +58,13 @@ const Search = ({
         supercog: supercog.join(","),
         taxonomy: taxonomy.join(","),
     })
+
+    const handleSetSelectionMode = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSelectionMode(event.target.value);
+        setGoTerm("");
+        setAspect("");
+        setSelectedItem(null);
+    };
 
     return(
         <Fade in={true} timeout={800}>
@@ -100,7 +109,7 @@ const Search = ({
                     id="goterm-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
-                    value={selectedGoTermValue}
+                    // value={selectedGoTermValue}
                     renderInput={(params: any) => <TextField {...params} label="Search by function" />}
                     getOptionLabel={(option: any) => option.GOname}
                     onChange={(e: any, value: any) => {
@@ -128,22 +137,42 @@ const Search = ({
                     }}
                 />
                 )}
-                <Stack direction="row" spacing={2} marginTop="6px" justifyContent={"end"}>
-                <Typography variant="body2" alignContent={"center"} color={selectionMode === SearchMode.NAME ? "primary" : "text.secondary"}>
-                    Name
-                </Typography>
-                <Switch
-                    checked={selectionMode === SearchMode.GOTERM}
-                    onChange={(e: any) => {
-                    setSelectionMode(e.target.checked ? SearchMode.GOTERM : SearchMode.NAME);
-                    setGoTerm("");
-                    setAspect("");
-                    setSelectedItem(null);
+                {selectionMode == SearchMode.ORIGIN && (
+                <Autocomplete
+                    disablePortal
+                    id="origin-select"
+                    options={autocomplete}
+                    sx={{ width: 400 }}
+                    value={selectedGoTermValue}
+                    renderInput={(params: any) => <TextField {...params} label="Search by origin" />}
+                    getOptionLabel={(option: any) => option}
+                    onChange={(e: any, value: any) => {
+                        
                     }}
+                    onInputChange={(e: any, value: any) => {
+                        fetch(`${findOriginsUrl}?origin=${value}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            setAutocomplete(data)
+                        });
+                    }}
+                    // onOpen={() => {
+                    //     fetch(`${findOriginsUrl}?origin=`)
+                    //     .then(res => res.json())
+                    //     .then(data => setAutocomplete(data));
+                    // }}
                 />
-                <Typography variant="body2" alignContent={"center"} color={selectionMode === SearchMode.GOTERM ? "primary" : "text.secondary"}>
-                    Function
-                </Typography>
+                )}
+                <Stack direction="row" spacing={2} marginTop="6px" justifyContent={"end"}>
+                    <RadioGroup 
+                        style={{display: "flex", flexDirection: "row"}}
+                        value={selectionMode}
+                        onChange={handleSetSelectionMode}
+                    >
+                        <FormControlLabel value="name" control={<Radio />} label="Name" />
+                        <FormControlLabel value="goterm" control={<Radio />} label="Function" />
+                        <FormControlLabel value="origin" control={<Radio />} label="Origin" />
+                    </RadioGroup>
                 </Stack>
             </Card>
         </Fade>

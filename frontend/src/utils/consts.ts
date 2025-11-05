@@ -41,7 +41,8 @@ export const TAXONOMY_MAPPING = {
 
 export const SearchMode = {
   NAME: 'name',
-  GOTERM: 'goterm'
+  GOTERM: 'goterm',
+  ORIGIN: 'origin'
 };
 
 export const X_START = 40;

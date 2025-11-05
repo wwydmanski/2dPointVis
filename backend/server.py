@@ -24,6 +24,7 @@ import io
 import uuid
 from typing import Dict, Any
 from pathlib import Path
+from itertools import chain 
 
 # Read DATA_PATH from environment variable
 DATA_PATH = os.environ.get("DATA_PATH")
@@ -131,6 +132,12 @@ matching_data = DATA[matching_mask]
 from tqdm import tqdm
 CLUSTER_TO_DATA = {row['clean_name_lower']: row for _, row in tqdm(matching_data.iterrows(), desc="Building cluster to data mapping", total=len(matching_data))}
 
+ORIGINS_ALL = list(
+    chain.from_iterable(
+        str(row).split(",") for row in DATA_FULL["taxonomy_name"].dropna().unique()
+    )
+)
+
 logger.info(f"Building search indices took {time.time() - start_time:.2f}s")
 
 @lru_cache(maxsize=1000)
@@ -139,8 +146,17 @@ def search_proteins(search_term):
     search_term_lower = search_term.lower()
     pattern = re.compile(search_term_lower)
     # Fast regex-based search through keys
-    matching_keys = [key for key in PROTEIN_INDEX_MAP.keys() 
+    matching_keys = [key.strip() for key in PROTEIN_INDEX_MAP.keys() 
                      if pattern.search(key)]
+    return matching_keys[:100]  # Limit to 100 matching proteins
+
+
+@lru_cache(maxsize=1000)
+def search_origins(origins_term):
+    origins_term_lower = origins_term.lower()
+    pattern = re.compile(origins_term_lower)
+    # Fast regex-based search through keys
+    matching_keys = list(set([key for key in ORIGINS_ALL if pattern.search(key.lower())]))
     return matching_keys[:100]  # Limit to 100 matching proteins
 
 GOTERMS_CACHE = {}
@@ -275,6 +291,52 @@ def get_points(
         
     logger.info(f"Total get_points processing took {time.time() - total_start_time:.2f}s with {len(subset)} results")
     return subset.to_dict(orient="records")
+
+
+def filter_rows(
+    rows,
+    x0: float = -15,
+    x1: float = 15,
+    y0: float = -25,
+    y1: float = 15,
+    types: str = "",
+    lengthRange: str = "",
+    pLDDT: str = "",    
+    supercog: str = "",
+    taxonomy: str = ""
+):
+    if pLDDT:
+        pLDDT = pLDDT.split(",")
+        pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
+    
+    if supercog:
+        supercog = supercog.split(",")
+        
+    if taxonomy:
+        taxonomy_split = taxonomy.split(",")
+    
+    if len(types) > 0:
+        types = types.split(",")
+    
+    if lengthRange:
+        lengthRange = lengthRange.split(",")
+        lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
+    
+    res = []
+    for index, row in rows.iterrows():
+        if not types or (row.x >= x0 and row.x <= x1 and row.y >= y0 and row.y < y1 and row.length >= lengthRange[0] and row.length <= lengthRange[1] \
+            and (row["afdb_pLDDT"] == "" or row["afdb_pLDDT"] == -1 or (row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1])) and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
+            and row["origin"] in types):
+            res.append(row)
+    return res
+
+
+@api_router.get("/find_origins")
+async def find_origins(origin: str):
+    if not origin:
+        return []
+
+    return search_origins(origin)
 
 
 @api_router.get("/points_init")
@@ -421,29 +483,7 @@ async def find_proteins_by_name(
     rows = DATA_FULL.loc[original_indices]
     logger.info(f"Finding matching names took {time.time() - start_time:.2f}s")
 
-    if pLDDT:
-        pLDDT = pLDDT.split(",")
-        pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
-    
-    if supercog:
-        supercog = supercog.split(",")
-        
-    if taxonomy:
-        taxonomy_split = taxonomy.split(",")
-    
-    if len(types) > 0:
-        types = types.split(",")
-    
-    if lengthRange:
-        lengthRange = lengthRange.split(",")
-        lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
-
-    res = []
-    for index, row in rows.iterrows():
-        if not types or (row.x >= x0 and row.x <= x1 and row.y >= y0 and row.y < y1 and row.length >= lengthRange[0] and row.length <= lengthRange[1] \
-            and (row["afdb_pLDDT"] == "" or row["afdb_pLDDT"] == -1 or (row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1])) and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
-            and row["origin"] in types):
-            res.append(row)
+    res = filter_rows(rows, x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, taxonomy)
 
     return [row["protein"] for row in res]
 
@@ -477,23 +517,6 @@ async def name_search(
     logger.info(f"Finding matching names took {time.time() - start_time:.2f}s")
     
     processing_start_time = time.time()
-
-    if pLDDT:
-        pLDDT = pLDDT.split(",")
-        pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
-    
-    if supercog:
-        supercog = supercog.split(",")
-        
-    if taxonomy:
-        taxonomy_split = taxonomy.split(",")
-    
-    if len(types) > 0:
-        types = types.split(",")
-    
-    if lengthRange:
-        lengthRange = lengthRange.split(",")
-        lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
     
     # Use precomputed data instead of filtering DATA again
     subset = []
@@ -506,14 +529,11 @@ async def name_search(
             data_["protein"] = found_name
             other_proteins_data = DATA_FULL[DATA_FULL["cluster_or_singleton"] == cluster]
             other_values = []
-            for index, row in other_proteins_data.iterrows():
-                if not types or (row.x >= x0 and row.x <= x1 and row.y >= y0 and row.y < y1 and row.length >= lengthRange[0] and row.length <= lengthRange[1] \
-                and (row["afdb_pLDDT"] == "" or row["afdb_pLDDT"] == -1 or (row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1])) and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
-                and row["origin"] in types):
-                    other_values.append({"name": row["clean_name"], "url": row["url"]})
-            for i, row in enumerate(other_values):
-                if row["name"] == cluster:
-                    other_values.insert(0, other_values.pop(i))
+            filtered_rows = filter_rows(other_proteins_data, x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, taxonomy)
+            for i, row in enumerate(filtered_rows):
+                if row["clean_name"] == cluster:
+                    value = filtered_rows.pop(i)
+                    other_values.insert(0, {"name": value["clean_name"], "url": value["url"]})
                     break
             data_["others"] = other_values
             subset.append(data_)
