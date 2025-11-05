@@ -107,7 +107,7 @@ function App() {
     return (datum) => {
       debouncedHandler(datum);
     };
-  }, []);
+  }, [viewport, selectedSources, lengthRange, pLDDT, supercog, taxonomy]);
 
   function handleSearching(foundItem) {
     setSelectedItem(foundItem);
@@ -187,6 +187,12 @@ function App() {
             selectedGoTermValue={selectedGoTermValue}
             setSelectedGoTermValue={setSelectedGoTermValue}
             host={host}
+            viewport={viewport}
+            selectedSources={selectedSources}
+            lengthRange={lengthRange}
+            pLDDT={pLDDT}
+            supercog={supercog}
+            taxonomy={taxonomy}
           />
 
           {/* Info Box & Proteins in Cluster */}

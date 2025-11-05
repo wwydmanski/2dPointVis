@@ -14,7 +14,13 @@ const Search = ({
     autocomplete,
     setAutocomplete,
     onClick,
-    host
+    host,
+    viewport,
+    selectedSources,
+    lengthRange,
+    pLDDT,
+    supercog,
+    taxonomy
 }: {
     selectionMode: any,
     setSelectionMode: (mode: any) => void,
@@ -27,11 +33,29 @@ const Search = ({
     autocomplete: any[],
     setAutocomplete: (data: any[]) => void,
     onClick: (item: any) => void,
-    host: string
+    host: string,
+    viewport: number[],
+    selectedSources: string[],
+    lengthRange: number[],
+    pLDDT: number[],
+    supercog: string[],
+    taxonomy: string[]
 } ) => {
     const findProteinsByNameUrl = `${host}/find_proteins_by_name`;
     const nameSearchUrl = `${host}/name_search`
     const goTermSearchUrl = `${host}/goterm_autocomplete`;
+    const params = (name: string) => new URLSearchParams({
+        name: name,
+        x0: viewport[0].toString(),
+        x1: viewport[1].toString(),
+        y0: viewport[2].toString(),
+        y1: viewport[3].toString(),
+        types: selectedSources.join(","),
+        lengthRange: `${lengthRange[0]},${lengthRange[1]}`,
+        pLDDT: `${pLDDT[0]},${pLDDT[1]}`,
+        supercog: supercog.join(","),
+        taxonomy: taxonomy.join(","),
+    })
 
     return(
         <Fade in={true} timeout={800}>
@@ -53,7 +77,7 @@ const Search = ({
                     getOptionLabel={(option: any) => option.protein}
                     onChange={(e: any, value: any) => {
                         if (value && value['protein']) {
-                            fetch(`${nameSearchUrl}?name=${value['protein']}`)
+                            fetch(`${nameSearchUrl}?${params(value['protein']).toString()}`)
                                 .then(res => res.json())
                                 .then(newData => {
                                     setSelectedItem(newData[0].chosen_protein);
@@ -62,7 +86,7 @@ const Search = ({
                         }
                     }}
                     onInputChange={(e: any, value: any) => {
-                    fetch(`${findProteinsByNameUrl}?name=${value}`)
+                    fetch(`${findProteinsByNameUrl}?${params(value).toString()}`)
                         .then(res => res.json())
                         .then(data => {
                             setAutocomplete(data.map((e: any) => ({ "protein": e})));

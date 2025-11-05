@@ -393,7 +393,18 @@ async def protein_goterm(protein: str):
 
 
 @api_router.get("/find_proteins_by_name")
-async def find_proteins_by_name(name: str):
+async def find_proteins_by_name(
+    name: str,
+    x0: float = -15,
+    x1: float = 15,
+    y0: float = -25,
+    y1: float = 15,
+    types: str = "",
+    lengthRange: str = "",
+    pLDDT: str = "",    
+    supercog: str = "",
+    taxonomy: str = ""
+):
     start_time = time.time()
     
     # Use cached regex search for faster matching
@@ -407,9 +418,34 @@ async def find_proteins_by_name(name: str):
     
     # Fast lookup using iloc
     all_matching = REVERSE_REPRESENTATIVE_MAPPING.loc[original_indices]
+    rows = DATA_FULL.loc[original_indices]
     logger.info(f"Finding matching names took {time.time() - start_time:.2f}s")
 
-    return original_indices
+    if pLDDT:
+        pLDDT = pLDDT.split(",")
+        pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
+    
+    if supercog:
+        supercog = supercog.split(",")
+        
+    if taxonomy:
+        taxonomy_split = taxonomy.split(",")
+    
+    if len(types) > 0:
+        types = types.split(",")
+    
+    if lengthRange:
+        lengthRange = lengthRange.split(",")
+        lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
+
+    res = []
+    for index, row in rows.iterrows():
+        if not types or (row.x >= x0 and row.x <= x1 and row.y >= y0 and row.y < y1 and row.length >= lengthRange[0] and row.length <= lengthRange[1] \
+            and (row["afdb_pLDDT"] == "" or row["afdb_pLDDT"] == -1 or (row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1])) and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
+            and row["origin"] in types):
+            res.append(row)
+
+    return [row["protein"] for row in res]
 
 
 @api_router.get("/name_search")
