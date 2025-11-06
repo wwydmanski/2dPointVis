@@ -29,6 +29,7 @@ function App() {
   const [selectionMode, setSelectionMode] = React.useState(SearchMode.NAME);
   const [goTerm, setGoTerm] = React.useState("");
   const [aspect, setAspect] = React.useState("");
+  const [origin, setOrigin] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false);
   const [goTermDetails, setGoTermDetails] = React.useState(null);
   const [selectedGoTermValue, setSelectedGoTermValue] = React.useState(null);
@@ -164,6 +165,7 @@ function App() {
           setViewport={setViewport}
           viewport={viewport}
           setPointIds={setPointIds}
+          origin={origin}
         />
         <Stack direction="column" spacing={2} sx={{
           position: "absolute",
@@ -186,6 +188,8 @@ function App() {
             selectionMode={selectionMode}
             selectedGoTermValue={selectedGoTermValue}
             setSelectedGoTermValue={setSelectedGoTermValue}
+            origin={origin}
+            setOrigin={setOrigin}
             host={host}
             viewport={viewport}
             selectedSources={selectedSources}
@@ -285,6 +289,7 @@ function App() {
           goTerm={goTerm}
           ontology={aspect}
           pointIds={pointIds}
+          origin={origin}
         />
       </Box >
     </ThemeProvider >

@@ -16,7 +16,8 @@ const BottomMenu = ({
   y1,
   goTerm,
   ontology,
-  pointIds
+  pointIds,
+  origin
 }:{
   pLDDT: number[],
   lengthRange: number[],
@@ -29,7 +30,8 @@ const BottomMenu = ({
   y1: number,
   goTerm: string,
   ontology: string,
-  pointIds: string[]
+  pointIds: string[],
+  origin: string
 }) => {
     return (
         <Fade in={true} timeout={1400}>
@@ -64,6 +66,7 @@ const BottomMenu = ({
                 goTerm={goTerm}
                 ontology={ontology}
                 pointIds={pointIds}
+                origin={origin}
               />
             </Card>
           </div>

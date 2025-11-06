@@ -138,6 +138,19 @@ ORIGINS_ALL = list(
     )
 )
 
+taxonomy_exploded = (
+    DATA_FULL.dropna(subset=["taxonomy_name"])
+    .assign(taxonomy_name=DATA_FULL["taxonomy_name"].str.split(","))
+    .explode("taxonomy_name")
+)
+
+taxonomy_exploded["taxonomy_name"] = taxonomy_exploded["taxonomy_name"].str.strip()
+
+ORIGIN_MAP = {
+    name: group
+    for name, group in taxonomy_exploded.groupby("taxonomy_name")
+}
+
 logger.info(f"Building search indices took {time.time() - start_time:.2f}s")
 
 @lru_cache(maxsize=1000)
@@ -156,8 +169,13 @@ def search_origins(origins_term):
     origins_term_lower = origins_term.lower()
     pattern = re.compile(origins_term_lower)
     # Fast regex-based search through keys
-    matching_keys = list(set([key for key in ORIGINS_ALL if pattern.search(key.lower())]))
+    matching_keys = list(set([key.strip() for key in ORIGINS_ALL if pattern.search(key.lower())]))
     return matching_keys[:100]  # Limit to 100 matching proteins
+
+@lru_cache(maxsize=1000)
+def search_proteins_by_origins(origins_term):
+    matching_proteins = ORIGIN_MAP[origins_term]
+    return matching_proteins[:100]  # Limit to 100 matching proteins
 
 GOTERMS_CACHE = {}
 
@@ -356,9 +374,10 @@ async def points(
     supercog: str = "",
     goterm: str = "",
     ontology: str = "",
-    taxonomy: str = ""
+    taxonomy: str = "",
+    origin: str = ""
 ):
-    return get_points(x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, goterm, ontology, taxonomy)
+    return get_points(x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, goterm, ontology, taxonomy, source=DATA if not origin else search_proteins_by_origins(origin))
 
 @api_router.get("/pdb_loc/{protein:str}")
 async def pdb_loc(protein: str):
@@ -528,12 +547,11 @@ async def name_search(
             data_["representative"] = cluster
             data_["protein"] = found_name
             other_proteins_data = DATA_FULL[DATA_FULL["cluster_or_singleton"] == cluster]
-            other_values = []
-            filtered_rows = filter_rows(other_proteins_data, x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, taxonomy)
-            for i, row in enumerate(filtered_rows):
-                if row["clean_name"] == cluster:
-                    value = filtered_rows.pop(i)
-                    other_values.insert(0, {"name": value["clean_name"], "url": value["url"]})
+            other_values = [{"name": row["clean_name"], "url": row["url"]} for row in filter_rows(other_proteins_data, x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, taxonomy)]
+            for i, row in enumerate(other_values):
+                if row["name"] == cluster:
+                    value = other_values.pop(i)
+                    other_values.insert(0, value)
                     break
             data_["others"] = other_values
             subset.append(data_)
@@ -572,6 +590,7 @@ def generate_tsv(job_id: str, body: dict):
     goTerm = body.get("goTerm")
     ids = body.get("ids", [])
     onlyRepresentatives = body.get("onlyRepresentatives", False)
+    origin = body.get("origin", "")
 
     points = get_points(
         x0=float(x0),
@@ -589,7 +608,7 @@ def generate_tsv(job_id: str, body: dict):
         ids=",".join(ids),
         columns=columnNames,
         onlyRepresentatives=onlyRepresentatives,
-        source=DATA_FULL
+        source=DATA_FULL if not origin else search_proteins_by_origins(origin)
     )
 
     file_path = EXPORT_DIR / f"{job_id}.tsv"
@@ -695,7 +714,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         supercog=",".join(map(str, data.get("supercog", []))),
                         goterm=data.get("goTerm", ""),
                         ontology=data.get("ontology", ""),
-                        taxonomy=",".join(map(str, data.get("taxonomy", [])))
+                        taxonomy=",".join(map(str, data.get("taxonomy", []))),
+                        source=DATA if not data.get("origin") else search_proteins_by_origins(data.get("origin"))
                     )
                     
                     if len(points) == 0:

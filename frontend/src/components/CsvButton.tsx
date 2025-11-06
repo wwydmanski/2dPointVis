@@ -15,7 +15,8 @@ const CsvButton = ({
   y1,
   goTerm,
   ontology,
-  pointIds
+  pointIds,
+  origin
 }:{
   pLDDT: number[],
   lengthRange: number[],
@@ -28,7 +29,8 @@ const CsvButton = ({
   y1: number,
   goTerm: string,
   ontology: string,
-  pointIds: string[]
+  pointIds: string[],
+  origin: string
 }) => {
     const modalBoxStyle = {
         position: 'absolute',
@@ -84,7 +86,8 @@ const CsvButton = ({
             ontology: ontology,
             ids: loadIds ? pointIds : [],
             columnNames: chosenColumns,
-            onlyRepresentatives: onlyRepresentatives
+            onlyRepresentatives: onlyRepresentatives,
+            origin
         };
 
         setWaitingForResponse(true);

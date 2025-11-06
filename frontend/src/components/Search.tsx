@@ -14,6 +14,8 @@ const Search = ({
     autocomplete,
     setAutocomplete,
     onClick,
+    origin,
+    setOrigin,
     host,
     viewport,
     selectedSources,
@@ -33,6 +35,8 @@ const Search = ({
     autocomplete: any[],
     setAutocomplete: (data: any[]) => void,
     onClick: (item: any) => void,
+    origin: string,
+    setOrigin: (newOrigin: string) => void,
     host: string,
     viewport: number[],
     selectedSources: string[],
@@ -109,7 +113,7 @@ const Search = ({
                     id="goterm-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
-                    // value={selectedGoTermValue}
+                    value={selectedGoTermValue}
                     renderInput={(params: any) => <TextField {...params} label="Search by function" />}
                     getOptionLabel={(option: any) => option.GOname}
                     onChange={(e: any, value: any) => {
@@ -143,11 +147,16 @@ const Search = ({
                     id="origin-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
-                    value={selectedGoTermValue}
+                    value={origin}
                     renderInput={(params: any) => <TextField {...params} label="Search by origin" />}
                     getOptionLabel={(option: any) => option}
                     onChange={(e: any, value: any) => {
-                        
+                        if (value) {
+                            setOrigin(value)
+                        }
+                        else {
+                            setOrigin("")
+                        }
                     }}
                     onInputChange={(e: any, value: any) => {
                         fetch(`${findOriginsUrl}?origin=${value}`)
@@ -156,11 +165,11 @@ const Search = ({
                             setAutocomplete(data)
                         });
                     }}
-                    // onOpen={() => {
-                    //     fetch(`${findOriginsUrl}?origin=`)
-                    //     .then(res => res.json())
-                    //     .then(data => setAutocomplete(data));
-                    // }}
+                    onOpen={() => {
+                        fetch(`${findOriginsUrl}?origin=`)
+                        .then(res => res.json())
+                        .then(data => setAutocomplete(data));
+                    }}
                 />
                 )}
                 <Stack direction="row" spacing={2} marginTop="6px" justifyContent={"end"}>

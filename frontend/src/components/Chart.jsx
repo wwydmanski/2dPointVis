@@ -7,7 +7,7 @@ import { colorMap } from '../utils/consts';
 import hexToRgba from '../utils/hexToRgba';
 import graphConfig from '../utils/graphConfig';
 
-export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport, viewport, setPointIds }) {
+export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport, viewport, setPointIds, origin }) {
   // Main state
   const [currentData, setCurrentData] = useState(undefined);
   const [visible, setVisible] = useState({
@@ -29,7 +29,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     supercog: [],
     goTerm: "",
     aspect: "",
-    taxonomy: []
+    taxonomy: [],
+    origin: origin
   });
 
   // Refs
@@ -49,7 +50,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       supercog,
       goTerm,
       ontology: aspect,
-      taxonomy
+      taxonomy,
+      origin
     };
 
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
@@ -133,12 +135,13 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   const [pendingZoomIndex, setPendingZoomIndex] = useState(null);
   const [hasInitialZoomed, setHasInitialZoomed] = useState(false);
 
-  const showPoint = (point, lengthRange, pLDDT, supercog, taxonomy, index) => {
+  const showPoint = (point, lengthRange, pLDDT, supercog, taxonomy, index, origin) => {
     return point.length >= lengthRange[0] && point.length <= lengthRange[1] &&
       ((point.afdb_pLDDT >= pLDDT[0] && point.afdb_pLDDT <= pLDDT[1]) || point.afdb_pLDDT === -1) &&
       supercog.includes(point.superCOG_v10) &&
       taxonomy.includes(point.taxonomy) &&
       selectedType.includes(point.origin) &&
+      point["taxonomy_name"].includes(origin) &&
       ((index < goTermFilter.length && goTermFilter[index]) || index >= goTermFilter.length)
   }
 
@@ -147,7 +150,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
 
     const pointPositions = currentData.map(d => [d.x, d.y]).flat();
     const pointColors = currentData.map((element, index) => {
-      if(showPoint(element, lengthRange, pLDDT, supercog, taxonomy, index)) {
+      if(showPoint(element, lengthRange, pLDDT, supercog, taxonomy, index, origin)) {
         return hexToRgba(element.color || colorMap[element.origin] || "#888888")
       }
       return hexToRgba(colorMap["filtered out"], 0.15)
@@ -172,7 +175,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       setPendingZoomIndex(null);
     }
     setPointIds(currentData.map(point => point["clean_name"]))
-  }, [currentData, lengthRange, pLDDT, supercog, taxonomy, goTermFilter]);
+  }, [currentData, lengthRange, pLDDT, supercog, taxonomy, goTermFilter, origin]);
 
   // Debounced server request function
   const debouncedSendMessage = useCallback(
@@ -194,6 +197,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       supercog !== previousFilters.supercog ||
       goTerm !== previousFilters.goTerm ||
       aspect !== previousFilters.aspect ||
+      origin !== previousFilters.origin ||
       taxonomy !== previousFilters.taxonomy;
     
     if (!viewportChanged && !filtersChanged) return;
@@ -207,11 +211,12 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       supercog,
       goTerm,
       aspect,
-      taxonomy
+      taxonomy,
+      origin
     });
   }, [
     visible, selectedType, lengthRange, pLDDT, supercog, goTerm, aspect, taxonomy,
-    viewportChanged, previousFilters
+    viewportChanged, previousFilters, origin
   ]);
 
   useEffect(() => {
