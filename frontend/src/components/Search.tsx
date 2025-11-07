@@ -80,7 +80,7 @@ const Search = ({
     return(
         <Fade in={true} timeout={800}>
             <Card sx={{
-                overflow: "hidden",
+                overflow: "visible",
                 borderRadius: "10px",
                 zIndex: 2,
                 margin: "10px",
@@ -89,10 +89,14 @@ const Search = ({
             }}>
                 {selectionMode === SearchMode.NAME && (
                 <Autocomplete
-                    disablePortal
                     id="name-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
+                    ListboxProps={{
+                        style: {
+                            maxHeight: '300px'
+                        }
+                    }}
                     renderInput={(params: any) => <TextField {...params} label="Search by protein ID" />}
                     getOptionLabel={(option: any) => option.protein}
                     onChange={(e: any, value: any) => {
@@ -116,11 +120,15 @@ const Search = ({
                 )}
                 {selectionMode === SearchMode.GOTERM && (
                 <Autocomplete
-                    disablePortal
                     id="goterm-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
                     value={selectedGoTermValue}
+                    ListboxProps={{
+                        style: {
+                            maxHeight: '300px'
+                        }
+                    }}
                     renderInput={(params: any) => <TextField {...params} label="Search by Gene Ontology function" />}
                     getOptionLabel={(option: any) => option.GOname}
                     onChange={(e: any, value: any) => {
@@ -150,11 +158,15 @@ const Search = ({
                 )}
                 {selectionMode == SearchMode.ORIGIN && (
                 <Autocomplete
-                    disablePortal
                     id="origin-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
                     value={origin}
+                    ListboxProps={{
+                        style: {
+                            maxHeight: '300px'
+                        }
+                    }}
                     renderInput={(params: any) => <TextField {...params} label="Search by protein organism/biom" />}
                     getOptionLabel={(option: any) => option}
                     onChange={(e: any, value: any) => {

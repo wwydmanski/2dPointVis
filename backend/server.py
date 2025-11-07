@@ -86,6 +86,31 @@ TOP_10_GEOTERM_NAMES = [
     { "GOname": "RNA metabolic process", "GOterm": "GO:0016070", "Ontology": "BP" }
 ]
 
+TOP_ORIGIN_NAMES = [
+    "Acidobacteriota bacterium",
+    "Deltaproteobacteria bacterium",
+    "Chloroflexota bacterium",
+    "Actinomycetes bacterium",
+    "Planctomycetota bacterium",
+    "Escherichia coli",
+    "Ktedonobacter racemife",
+    "Mycobacterium genavense",
+    "Amycolatopsis taiwanensis",
+    "Environmental",
+    "Aquatic",
+    "Marine",
+    "Engineered",
+    "Host-associated",
+    "Freshwater",
+    "Wastewater",
+    "Oceanic",
+    "Digestive system",
+    "Human",
+    "Sediment",
+    "Mixed",
+    "Unknown",
+]
+
 MAPPED_COLUMN_NAMES = {
     "protein_id": "protein",
     "database": "origin",
@@ -373,7 +398,7 @@ def filter_rows(
 @api_router.get("/find_origins")
 async def find_origins(origin: str):
     if not origin:
-        return []
+        return TOP_ORIGIN_NAMES
 
     return search_origins(origin)
 
