@@ -1,5 +1,6 @@
-import { Fade, Card, Autocomplete, TextField, Stack, Typography, Switch, RadioGroup, FormControlLabel, Radio } from '@mui/material';
+import { Fade, Card, Autocomplete, TextField, Stack, Typography, Switch, RadioGroup, FormControlLabel, Radio, Tooltip, IconButton } from '@mui/material';
 import { SOURCES, SOURCE_MAPPING, ANNOTATION_MAPPING, TAXONOMY_MAPPING, X_START, SearchMode, DJANGO_HOST } from '../utils/consts.js';
+import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import React from 'react';
 
 const Search = ({ 
@@ -50,6 +51,12 @@ const Search = ({
     const goTermSearchUrl = `${host}/goterm_autocomplete`;
     const findOriginsUrl = `${host}/find_origins`
 
+    const tooltipTexts = {
+        [SearchMode.NAME]: "Search by protein ID e.g. A0A2W5YLP2, MGYP002852702119, MIP_00087436 etc.",
+        [SearchMode.GOTERM]: "Search by Gene Ontology function e.g. DNA binding, transcription regulator activity etc.",
+        [SearchMode.ORIGIN]: "Search by protein organism/biom e.g. Chloroflexota bacterium, Thermus igniterrae, Human, Marine, Digestive system, Bioreactor, Unknown etc.",
+    }
+
     const params = (name: string) => new URLSearchParams({
         name: name,
         x0: viewport[0].toString(),
@@ -86,7 +93,7 @@ const Search = ({
                     id="name-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
-                    renderInput={(params: any) => <TextField {...params} label="Search by name" />}
+                    renderInput={(params: any) => <TextField {...params} label="Search by protein ID" />}
                     getOptionLabel={(option: any) => option.protein}
                     onChange={(e: any, value: any) => {
                         if (value && value['protein']) {
@@ -114,7 +121,7 @@ const Search = ({
                     options={autocomplete}
                     sx={{ width: 400 }}
                     value={selectedGoTermValue}
-                    renderInput={(params: any) => <TextField {...params} label="Search by function" />}
+                    renderInput={(params: any) => <TextField {...params} label="Search by Gene Ontology function" />}
                     getOptionLabel={(option: any) => option.GOname}
                     onChange={(e: any, value: any) => {
                     if (value) {
@@ -148,7 +155,7 @@ const Search = ({
                     options={autocomplete}
                     sx={{ width: 400 }}
                     value={origin}
-                    renderInput={(params: any) => <TextField {...params} label="Search by origin" />}
+                    renderInput={(params: any) => <TextField {...params} label="Search by protein organism/biom" />}
                     getOptionLabel={(option: any) => option}
                     onChange={(e: any, value: any) => {
                         if (value) {
@@ -172,7 +179,13 @@ const Search = ({
                     }}
                 />
                 )}
-                <Stack direction="row" spacing={2} marginTop="6px" justifyContent={"end"}>
+                <Stack direction="row" spacing={2} marginTop="6px" justifyContent={"space-between"}>
+                    <Tooltip title={tooltipTexts[selectionMode]}>
+                        <IconButton size="small">
+                            {/* @ts-ignore */}
+                            <QuestionMarkIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
                     <RadioGroup 
                         style={{display: "flex", flexDirection: "row"}}
                         value={selectionMode}

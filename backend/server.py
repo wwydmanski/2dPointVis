@@ -15,12 +15,10 @@ import asyncio
 import traceback
 import os
 import time
-import concurrent.futures
 from functools import lru_cache
 import re
 import tqdm
 import csv
-import io
 import uuid
 from typing import Dict, Any
 from pathlib import Path
@@ -63,6 +61,13 @@ DATA = DATA_FULL[DATA_FULL['cluster_or_singleton'] == DATA_FULL.index]
 PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
 GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
 PROTEIN_GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_protein_HQ"
+AFDB_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/afdb_origin_counts.csv"
+ESM_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/esm_origin_counts.csv"
+MIP_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/mip_origin_counts.csv"
+
+AFDB_ORIGIN_COUNTS = pd.read_csv(AFDB_ORIGIN_COUNTS_LOC)
+ESM_ORIGIN_COUNTS = pd.read_csv(ESM_ORIGIN_COUNTS_LOC)
+MIP_ORIGIN_COUNTS = pd.read_csv(MIP_ORIGIN_COUNTS_LOC)
 
 start_time = time.time()
 GOTERMS_NAME = pd.read_csv(
@@ -131,6 +136,22 @@ matching_data = DATA[matching_mask]
 # Create the mapping dict directly
 from tqdm import tqdm
 CLUSTER_TO_DATA = {row['clean_name_lower']: row for _, row in tqdm(matching_data.iterrows(), desc="Building cluster to data mapping", total=len(matching_data))}
+
+# ORIGINS_ALL = (
+#     pd.concat(
+#         [
+#             AFDB_ORIGIN_COUNTS["origin"],
+#             ESM_ORIGIN_COUNTS["origin"],
+#             MIP_ORIGIN_COUNTS["origin"],
+#         ],
+#         ignore_index=True,
+#     )
+#     .dropna()
+#     .astype(str)
+#     .str.strip()
+#     .unique()
+#     .tolist()
+# )
 
 ORIGINS_ALL = list(
     chain.from_iterable(
