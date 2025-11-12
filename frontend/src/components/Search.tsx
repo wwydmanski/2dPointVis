@@ -1,6 +1,6 @@
-import { Fade, Card, Autocomplete, TextField, Stack, Typography, Switch, RadioGroup, FormControlLabel, Radio, Tooltip, IconButton } from '@mui/material';
+import { Fade, Card, Autocomplete, TextField, Stack, Typography, Switch, RadioGroup, FormControlLabel, Radio, Tooltip, IconButton, InputAdornment } from '@mui/material';
 import { SOURCES, SOURCE_MAPPING, ANNOTATION_MAPPING, TAXONOMY_MAPPING, X_START, SearchMode, DJANGO_HOST } from '../utils/consts.js';
-import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
+import SearchIcon from '@mui/icons-material/Search';
 import React from 'react';
 
 const Search = ({ 
@@ -50,6 +50,7 @@ const Search = ({
     const nameSearchUrl = `${host}/name_search`
     const goTermSearchUrl = `${host}/goterm_autocomplete`;
     const findOriginsUrl = `${host}/find_origins`
+    const [countSuffix, setCountSuffix] = React.useState("");
 
     const tooltipTexts = {
         [SearchMode.NAME]: "Search by protein ID e.g. A0A2W5YLP2, MGYP002852702119, MIP_00087436 etc.",
@@ -71,11 +72,37 @@ const Search = ({
     })
 
     const handleSetSelectionMode = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setSelectionMode(event.target.value);
-        setGoTerm("");
-        setAspect("");
+        const newMode = event.target.value;
+        setSelectionMode(newMode);
+        setAutocomplete([]);
         setSelectedItem(null);
+
+        if (newMode !== SearchMode.GOTERM) {
+            setGoTerm("");
+            setAspect("");
+            setSelectedGoTermValue(null);
+        }
+
+        if (newMode !== SearchMode.ORIGIN) {
+            setOrigin("");
+        }
     };
+
+    const handleChangeOrigin = (value: string) => {
+        if (value) {
+            const trimmedValue = value.replace(/\s*\[\d+\]/g, "").trim();
+            setCountSuffix(value.match(/\s*\[\d+\]/g)?.[0] || "");
+            setOrigin(trimmedValue);
+
+            fetch(`${host}/origin_count?regex=.*${trimmedValue}.*`)
+                .then(res => res.json())
+                .then(data => {
+                    setCountSuffix(`[${data["count"]}]`);
+                });
+        } else {
+            setOrigin("");
+        }
+    }
 
     return(
         <Fade in={true} timeout={800}>
@@ -161,17 +188,63 @@ const Search = ({
                     id="origin-select"
                     options={autocomplete}
                     sx={{ width: 400 }}
-                    value={origin}
+                    value={origin ? origin + " " + countSuffix : ""}
                     ListboxProps={{
                         style: {
                             maxHeight: '300px'
                         }
                     }}
-                    renderInput={(params: any) => <TextField {...params} label="Search by protein organism/biom" />}
+                    onKeyDown={(event: any) => {
+                        if (event.key === 'Enter') {
+                            // Prevent's default 'Enter' behavior.
+                            event.defaultMuiPrevented = true;
+                            const value = event.target.value;
+                            handleChangeOrigin(value)
+                        }
+                    }}
+                    // renderInput={(params: any) => <TextField {...params} label="Search by protein organism/biom [counts]" />}
+                    renderInput={(params: any) => {
+                        const { InputProps: inputPropsFromParams, inputProps, ...restParams } = params;
+                        return (
+                            <TextField
+                                {...restParams}
+                                inputProps={{
+                                    ...inputProps,
+                                    style: {
+                                        ...(inputProps?.style || {}),
+                                        paddingRight: '40px'
+                                    }
+                                }}
+                            label="Search by organism/biom [counts]"
+                            InputProps={{
+                                ...inputPropsFromParams,
+                                endAdornment: (
+                                    <>
+                                        {inputPropsFromParams.endAdornment}
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                size="small"
+                                                edge="end"
+                                                onClick={() => {
+                                                    const value = inputProps?.value;
+                                                    handleChangeOrigin(value)
+                                                }}
+                                            >
+                                                {/* @ts-ignore */}
+                                                <SearchIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    </>
+                                )
+                            }}
+                        />
+                        );
+                    }}
                     getOptionLabel={(option: any) => option}
                     onChange={(e: any, value: any) => {
                         if (value) {
-                            setOrigin(value)
+                            setCountSuffix(value.match(/\s*\[\d+\]/g)?.[0] || "")
+                            setOrigin(value.replace(/\s*\[\d+\]/g, "").trim())
                         }
                         else {
                             setOrigin("")
@@ -181,32 +254,27 @@ const Search = ({
                         fetch(`${findOriginsUrl}?origin=${value}`)
                         .then(res => res.json())
                         .then(data => {
-                            setAutocomplete(data)
+                            setAutocomplete(data.map((e: any) => typeof e === "object" ? `${e["origin"]} [${e["count"]}]` : e))
                         });
                     }}
                     onOpen={() => {
                         fetch(`${findOriginsUrl}?origin=`)
                         .then(res => res.json())
-                        .then(data => setAutocomplete(data));
+                        .then(data => setAutocomplete(data.map((e: any) => typeof e === "object" ? `${e["origin"]} [${e["count"]}]` : e)));
                     }}
                 />
                 )}
                 <Stack direction="row" spacing={2} marginTop="6px" justifyContent={"space-between"}>
-                    <Tooltip title={tooltipTexts[selectionMode]}>
-                        <IconButton size="small">
-                            {/* @ts-ignore */}
-                            <QuestionMarkIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                    <RadioGroup 
-                        style={{display: "flex", flexDirection: "row"}}
-                        value={selectionMode}
-                        onChange={handleSetSelectionMode}
-                    >
-                        <FormControlLabel value="name" control={<Radio />} label="Name" />
-                        <FormControlLabel value="goterm" control={<Radio />} label="Function" />
-                        <FormControlLabel value="origin" control={<Radio />} label="Origin" />
-                    </RadioGroup>
+                    
+                        <RadioGroup 
+                            style={{display: "flex", flexDirection: "row"}}
+                            value={selectionMode}
+                            onChange={handleSetSelectionMode}
+                        >
+                            <Tooltip title={tooltipTexts[SearchMode.NAME]}><FormControlLabel value="name" control={<Radio />} label="Name" /></Tooltip>
+                            <Tooltip title={tooltipTexts[SearchMode.GOTERM]}><FormControlLabel value="goterm" control={<Radio />} label="Function" /></Tooltip>
+                            <Tooltip title={tooltipTexts[SearchMode.ORIGIN]}><FormControlLabel value="origin" control={<Radio />} label="Origin" /></Tooltip>
+                        </RadioGroup>
                 </Stack>
             </Card>
         </Fade>

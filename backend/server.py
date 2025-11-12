@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi import Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 import uvicorn
 import pandas as pd
@@ -162,27 +162,16 @@ matching_data = DATA[matching_mask]
 from tqdm import tqdm
 CLUSTER_TO_DATA = {row['clean_name_lower']: row for _, row in tqdm(matching_data.iterrows(), desc="Building cluster to data mapping", total=len(matching_data))}
 
-# ORIGINS_ALL = (
-#     pd.concat(
-#         [
-#             AFDB_ORIGIN_COUNTS["origin"],
-#             ESM_ORIGIN_COUNTS["origin"],
-#             MIP_ORIGIN_COUNTS["origin"],
-#         ],
-#         ignore_index=True,
-#     )
-#     .dropna()
-#     .astype(str)
-#     .str.strip()
-#     .unique()
-#     .tolist()
-# )
-
-ORIGINS_ALL = list(
-    chain.from_iterable(
-        str(row).split(",") for row in DATA_FULL["taxonomy_name"].dropna().unique()
-    )
+ORIGINS_ALL = pd.concat(
+    [AFDB_ORIGIN_COUNTS, ESM_ORIGIN_COUNTS, MIP_ORIGIN_COUNTS],
+    ignore_index=True
 )
+
+# ORIGINS_ALL = list(
+#     chain.from_iterable(
+#         str(row).split(",") for row in DATA_FULL["taxonomy_name"].dropna().unique()
+#     )
+# )
 
 taxonomy_exploded = (
     DATA_FULL.dropna(subset=["taxonomy_name"])
@@ -213,15 +202,45 @@ def search_proteins(search_term):
 @lru_cache(maxsize=1000)
 def search_origins(origins_term):
     origins_term_lower = origins_term.lower()
-    pattern = re.compile(origins_term_lower)
+    pattern = re.compile(".*"+origins_term_lower+".*")
     # Fast regex-based search through keys
-    matching_keys = list(set([key.strip() for key in ORIGINS_ALL if pattern.search(key.lower())]))
-    return matching_keys[:100]  # Limit to 100 matching proteins
+    matching_origins = [
+        row._asdict()
+        for row in ORIGINS_ALL.itertuples(index=False)
+        if pattern.search(row.origin.lower())
+    ]
+    sorted_origins = sorted(matching_origins, key=lambda x: int(x["count"]), reverse=True)
+    return sorted_origins[:100]  # Limit to 100 matching proteins
+
+def search_proteins_by_origins(origins_term: str, source: pd.DataFrame) -> pd.DataFrame:
+    source_key = "data_full" if source is DATA_FULL else "data_core"
+    return _search_proteins_by_origins_cached(origins_term, source_key)
+
 
 @lru_cache(maxsize=1000)
-def search_proteins_by_origins(origins_term):
-    matching_proteins = ORIGIN_MAP[origins_term]
-    return matching_proteins[:100]  # Limit to 100 matching proteins
+def _search_proteins_by_origins_cached(origins_term: str, source_key: str) -> pd.DataFrame:
+    source = DATA_FULL if source_key == "data_full" else DATA
+
+    if not origins_term:
+        return source.iloc[0:0]
+
+    try:
+        pattern = re.compile(".*" + origins_term + ".*", re.IGNORECASE)
+    except re.error:
+        pattern = re.compile(re.escape(".*" + origins_term + ".*"), re.IGNORECASE)
+
+    matching_groups = [
+        group
+        for name, group in ORIGIN_MAP.items()
+        if pattern.search(name)
+    ]
+
+    if not matching_groups:
+        return source.iloc[0:0]
+
+    combined = pd.concat(matching_groups, ignore_index=True)
+    combined = combined.drop_duplicates(subset="protein", keep="first")
+    return combined
 
 GOTERMS_CACHE = {}
 
@@ -403,6 +422,29 @@ async def find_origins(origin: str):
     return search_origins(origin)
 
 
+@api_router.get("/origin_count", response_class=JSONResponse)
+async def origin_count(regex: str = ""):
+    if not regex:
+        return {"count": 0}
+
+    try:
+        pattern = re.compile(regex, re.IGNORECASE)
+    except re.error:
+        pattern = re.compile(re.escape(regex), re.IGNORECASE)
+
+    total = 0
+    for row in ORIGINS_ALL.itertuples(index=False):
+        origin_value = getattr(row, "origin", "")
+        count_value = getattr(row, "count", 0)
+        if pattern.search(str(origin_value)):
+            try:
+                total += int(count_value)
+            except (TypeError, ValueError):
+                continue
+
+    return {"count": int(total)}
+
+
 @api_router.get("/points_init")
 async def points():
     return get_initial_points()
@@ -423,7 +465,7 @@ async def points(
     taxonomy: str = "",
     origin: str = ""
 ):
-    return get_points(x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, goterm, ontology, taxonomy, source=DATA if not origin else search_proteins_by_origins(origin))
+    return get_points(x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, goterm, ontology, taxonomy, source=DATA if not origin else search_proteins_by_origins(origin, DATA))
 
 @api_router.get("/pdb_loc/{protein:str}")
 async def pdb_loc(protein: str):
@@ -654,7 +696,7 @@ def generate_tsv(job_id: str, body: dict):
         ids=",".join(ids),
         columns=columnNames,
         onlyRepresentatives=onlyRepresentatives,
-        source=DATA_FULL if not origin else search_proteins_by_origins(origin)
+        source=DATA_FULL if not origin else search_proteins_by_origins(origin, DATA_FULL)
     )
 
     file_path = EXPORT_DIR / f"{job_id}.tsv"
@@ -761,7 +803,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         goterm=data.get("goTerm", ""),
                         ontology=data.get("ontology", ""),
                         taxonomy=",".join(map(str, data.get("taxonomy", []))),
-                        source=DATA if not data.get("origin") else search_proteins_by_origins(data.get("origin"))
+                        source=DATA if not data.get("origin") else search_proteins_by_origins(data.get("origin"), DATA)
                     )
                     
                     if len(points) == 0:

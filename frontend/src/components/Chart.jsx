@@ -141,7 +141,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       supercog.includes(point.superCOG_v10) &&
       taxonomy.includes(point.taxonomy) &&
       selectedType.includes(point.origin) &&
-      point["taxonomy_name"].includes(origin) &&
+      point["taxonomy_name"].toLowerCase() .includes(origin.toLowerCase()) &&
       ((index < goTermFilter.length && goTermFilter[index]) || index >= goTermFilter.length)
   }
 
