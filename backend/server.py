@@ -39,7 +39,7 @@ DATA_FULL = pd.read_parquet(
     f"{DATA_WEBSERVER_PATH}/data.parquet"
 ).drop(columns=["afdb_hq"])
 DATA_FULL["protein"] = list(DATA_FULL.index)
-DATA_FULL = DATA_FULL.rename(columns={"origin": "taxonomy_name", "database": "origin"})
+DATA_FULL = DATA_FULL.rename(columns={"origin": "taxonomy_name", "database": "origin", "origin_mod": "taxonomy_name_mod"})
 
 logger.info(f"Taxonomy: {DATA_FULL['taxonomy'].value_counts()}")
 
@@ -61,9 +61,9 @@ DATA = DATA_FULL[DATA_FULL['cluster_or_singleton'] == DATA_FULL.index]
 PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
 GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
 PROTEIN_GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_protein_HQ"
-AFDB_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/afdb_origin_counts.csv"
-ESM_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/esm_origin_counts.csv"
-MIP_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/mip_origin_counts.csv"
+AFDB_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/afdb_origin_counts_mod.csv"
+ESM_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/esm_origin_counts_mod.csv"
+MIP_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/mip_origin_counts_mod.csv"
 
 AFDB_ORIGIN_COUNTS = pd.read_csv(AFDB_ORIGIN_COUNTS_LOC)
 ESM_ORIGIN_COUNTS = pd.read_csv(ESM_ORIGIN_COUNTS_LOC)
@@ -87,28 +87,28 @@ TOP_10_GEOTERM_NAMES = [
 ]
 
 TOP_ORIGIN_NAMES = [
-    "Acidobacteriota bacterium",
-    "Deltaproteobacteria bacterium",
-    "Chloroflexota bacterium",
-    "Actinomycetes bacterium",
-    "Planctomycetota bacterium",
-    "Escherichia coli",
-    "Ktedonobacter racemife",
-    "Mycobacterium genavense",
-    "Amycolatopsis taiwanensis",
-    "Environmental",
-    "Aquatic",
-    "Marine",
-    "Engineered",
-    "Host-associated",
-    "Freshwater",
-    "Wastewater",
-    "Oceanic",
-    "Digestive system",
-    "Human",
-    "Sediment",
-    "Mixed",
-    "Unknown",
+    {'origin': 'Environmental', 'count': 857043},
+    {'origin': 'Aquatic', 'count': 790514},
+    {'origin': 'Marine', 'count': 447868},
+    {'origin': 'Engineered', 'count': 365711},
+    {'origin': 'Host-associated', 'count': 273393},
+    {'origin': 'Freshwater', 'count': 254984},
+    {'origin': 'Wastewater', 'count': 224070},
+    {'origin': 'Oceanic', 'count': 191129},
+    {'origin': 'Digestive system', 'count': 165348},
+    {'origin': 'Sediment', 'count': 142273},
+    {'origin': 'Human', 'count': 128644},
+    {'origin': 'Mixed', 'count': 124305},
+    {'origin': 'Unknown', 'count': 24382},
+    {'origin': 'Deltaproteobacteria bacterium', 'count': 16958},
+    {'origin': 'Acidobacteriota bacterium', 'count': 15555},
+    {'origin': 'Chloroflexota bacterium', 'count': 12002},
+    {'origin': 'Actinomycetes bacterium', 'count': 10066},
+    {'origin': 'Planctomycetota bacterium', 'count': 9843},
+    {'origin': 'Escherichia coli', 'count': 9840},
+    {'origin': 'Ktedonobacter racemife', 'count': 820},
+    {'origin': 'Mycobacterium genavense', 'count': 370},
+    {'origin': 'Amycolatopsis taiwanensis', 'count': 361}
 ]
 
 MAPPED_COLUMN_NAMES = {
@@ -123,6 +123,7 @@ MAPPED_COLUMN_NAMES = {
     "superCOG_v11": "superCOG_v11",
     "taxonomy": "taxonomy",
     "origin": "taxonomy_name",
+    "origin_mod": "taxonomy_name_mod",
     "url": "url"
 }
 
@@ -167,23 +168,17 @@ ORIGINS_ALL = pd.concat(
     ignore_index=True
 )
 
-# ORIGINS_ALL = list(
-#     chain.from_iterable(
-#         str(row).split(",") for row in DATA_FULL["taxonomy_name"].dropna().unique()
-#     )
-# )
-
 taxonomy_exploded = (
-    DATA_FULL.dropna(subset=["taxonomy_name"])
-    .assign(taxonomy_name=DATA_FULL["taxonomy_name"].str.split(","))
-    .explode("taxonomy_name")
+    DATA_FULL.dropna(subset=["taxonomy_name_mod"])
+    .assign(taxonomy_name_mod=DATA_FULL["taxonomy_name_mod"].str.split(","))
+    .explode("taxonomy_name_mod")
 )
 
-taxonomy_exploded["taxonomy_name"] = taxonomy_exploded["taxonomy_name"].str.strip()
+taxonomy_exploded["taxonomy_name_mod"] = taxonomy_exploded["taxonomy_name_mod"].str.strip()
 
 ORIGIN_MAP = {
     name: group
-    for name, group in taxonomy_exploded.groupby("taxonomy_name")
+    for name, group in taxonomy_exploded.groupby("taxonomy_name_mod")
 }
 
 logger.info(f"Building search indices took {time.time() - start_time:.2f}s")
