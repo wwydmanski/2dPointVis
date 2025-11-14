@@ -61,13 +61,9 @@ DATA = DATA_FULL[DATA_FULL['cluster_or_singleton'] == DATA_FULL.index]
 PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
 GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
 PROTEIN_GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_protein_HQ"
-AFDB_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/afdb_origin_counts_mod.csv"
-ESM_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/esm_origin_counts_mod.csv"
-MIP_ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/mip_origin_counts_mod.csv"
+ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/origin_counts_mod.csv"
 
-AFDB_ORIGIN_COUNTS = pd.read_csv(AFDB_ORIGIN_COUNTS_LOC)
-ESM_ORIGIN_COUNTS = pd.read_csv(ESM_ORIGIN_COUNTS_LOC)
-MIP_ORIGIN_COUNTS = pd.read_csv(MIP_ORIGIN_COUNTS_LOC)
+ORIGINS_ALL = pd.read_csv(ORIGIN_COUNTS_LOC)
 
 start_time = time.time()
 GOTERMS_NAME = pd.read_csv(
@@ -162,11 +158,6 @@ matching_data = DATA[matching_mask]
 # Create the mapping dict directly
 from tqdm import tqdm
 CLUSTER_TO_DATA = {row['clean_name_lower']: row for _, row in tqdm(matching_data.iterrows(), desc="Building cluster to data mapping", total=len(matching_data))}
-
-ORIGINS_ALL = pd.concat(
-    [AFDB_ORIGIN_COUNTS, ESM_ORIGIN_COUNTS, MIP_ORIGIN_COUNTS],
-    ignore_index=True
-)
 
 taxonomy_exploded = (
     DATA_FULL.dropna(subset=["taxonomy_name_mod"])
