@@ -35,9 +35,9 @@ if not DATA_WEBSERVER_PATH:
     raise RuntimeError("DATA_WEBSERVER_PATH environment variable is not set")
 
 start_time = time.time()
-DATA_FULL = pd.read_parquet(
-    f"{DATA_WEBSERVER_PATH}/data.parquet"
-).drop(columns=["afdb_hq"])
+DATA_FULL = pd.read_csv(
+    f"{DATA_WEBSERVER_PATH}/data.csv"
+).drop(columns=["afdb_hq"]).set_index('index')
 DATA_FULL["protein"] = list(DATA_FULL.index)
 DATA_FULL = DATA_FULL.rename(columns={"origin": "taxonomy_name", "database": "origin", "origin_mod": "taxonomy_name_mod"})
 
