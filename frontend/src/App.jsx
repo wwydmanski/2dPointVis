@@ -3,7 +3,7 @@ import './App.css'
 import { ThemeProvider } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import { debounce } from 'lodash';
-import { Box, Stack, Fade, CircularProgress } from '@mui/material';
+import { Box, Stack, Fade, CircularProgress, Typography } from '@mui/material';
 import { SOURCES, SOURCE_MAPPING, ANNOTATION_MAPPING, TAXONOMY_MAPPING, SearchMode, DJANGO_HOST } from './utils/consts';
 import renderProtein from './utils/renderProtein';
 import Chart from './components/Chart';
@@ -36,6 +36,7 @@ function App() {
   const [selectedNonRepresentative, setSelectedNonRepresentative] = React.useState(null);
   const [viewport, setViewport] = React.useState([-20, 20, -30, 20])
   const [pointIds, setPointIds] = React.useState([])
+  const [loadingMessage, setLoadingMessage] = React.useState("");
 
   // Update this useEffect to fetch GO term details when a protein is selected
   const host = typeof DJANGO_HOST === "string" && DJANGO_HOST.length > 0
@@ -138,15 +139,17 @@ function App() {
             left: '50%',
             transform: 'translate(-50%, -50%)',
             zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-            padding: '20px',
-            borderRadius: '50%',
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            padding: '30px',
+            borderRadius: '30px',
             display: 'flex',
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            columnGap: '30px'
           }}
         >
           <CircularProgress sx={{ color: theme.palette.primary.main }} />
+          <Typography variant="h5">{loadingMessage}</Typography>
         </Box>
       )}
       <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', color: 'text.primary' }}>
@@ -166,6 +169,7 @@ function App() {
           viewport={viewport}
           setPointIds={setPointIds}
           origin={origin}
+          setLoadingMessage={setLoadingMessage}
         />
         <Stack direction="column" spacing={2} sx={{
           position: "absolute",

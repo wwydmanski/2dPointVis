@@ -7,7 +7,7 @@ import { colorMap } from '../utils/consts';
 import hexToRgba from '../utils/hexToRgba';
 import graphConfig from '../utils/graphConfig';
 
-export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport, viewport, setPointIds, origin }) {
+export default function Chart({ selectedType, selectionCallback, lengthRange, pLDDT, supercog, foundItem, goTerm, aspect, setIsLoading, taxonomy, zoomedItem, setViewport, viewport, setPointIds, origin, setLoadingMessage }) {
   // Main state
   const [currentData, setCurrentData] = useState(undefined);
   const [visible, setVisible] = useState({
@@ -117,10 +117,14 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     
   });
 
+  const simulationStartCallback = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+
   // Initialize graph instance
   useEffect(() => {
     if (!graphInstanceRef.current && graphRef.current) {
-      graphInstanceRef.current = new Graph(graphRef.current, graphConfig(zoomCallback));
+      graphInstanceRef.current = new Graph(graphRef.current, graphConfig(zoomCallback, simulationStartCallback));
     }
     
     return () => {
@@ -182,6 +186,7 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
     debounce((message) => {
       sendMessage(message);
       setIsLoading(true);
+      setLoadingMessage("Fetching additional proteins...");
     }, 400),
     [sendMessage, setIsLoading]
   );
@@ -254,7 +259,6 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   // Process WebSocket messages
   useEffect(() => {
     if (!lastMessage || lastProcessedMessageRef.current === lastMessage.data) {
-      setIsLoading(false);
       return;
     }
     
@@ -270,16 +274,12 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
           break;
 
         case 'update':
-          if(data.is_last) {
-            setIsLoading(false);
-          }
           tempNewStreamingData = [...data.points, ...streamingData]
           setStreamingData(prev => [...data.points, ...prev]);
           break;
 
         case 'error':
           console.error('Server error:', data.message);
-          setIsLoading(false);
           break;
       }
 
@@ -298,6 +298,8 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
       setCurrentData(combinedData.map(element => ({ ...element, id: element.clean_name })));
     } catch (error) {
       console.error('Error parsing WebSocket message:', error);
+    } finally {
+      setLoadingMessage("Rendering proteins...");
     }
   }, [lastMessage]);
 
@@ -309,12 +311,15 @@ export default function Chart({ selectedType, selectionCallback, lengthRange, pL
   // Initial data fetch
   useEffect(() => {
     sendMessage(JSON.stringify({ type: 'init' }));
+    setIsLoading(true);
+    setLoadingMessage("Fetching initial proteins...");
   }, [sendMessage]);
 
   useEffect(() => {
     if(goTerm && aspect) {
       async function fetchGotermFilter() {
         setIsLoading(true)
+        setLoadingMessage("Fetching GO term filter proteins...");
         const result = await fetch(`${apiHost}/goterm`, {
           method: 'POST',
           body: JSON.stringify({

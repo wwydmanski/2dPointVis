@@ -1,4 +1,4 @@
-const graphConfig = (zoomCallback: (zoomEvent: any) => void) => ({
+const graphConfig = (zoomCallback: (zoomEvent: any) => void, simulationStartCallback: () => void) => ({
     pointGreyoutOpacity: 0.4,
     enableSimulation: false,
     spaceSize: 4096,
@@ -13,7 +13,8 @@ const graphConfig = (zoomCallback: (zoomEvent: any) => void) => ({
     pointSize: 3,
     pixelRatio: 1,
     rescalePositions: 0,
-    onZoom: zoomCallback
+    onZoom: zoomCallback,
+    onSimulationStart: simulationStartCallback
 })
 
 export default graphConfig;
