@@ -41,7 +41,7 @@ The tool presents a unified, low-dimensional representation of the protein space
 2. (Once) Install frontend dependencies:
    ```
    cd frontend
-   npm install
+   yarn install
    cd ..
    ```
 3. (Once) Install backend dependencies:
@@ -80,7 +80,7 @@ The tool presents a unified, low-dimensional representation of the protein space
 2. (Once) Install frontend dependencies:
    ```
    cd frontend
-   npm install
+   yarn install
    ```
 3. Build frontend artifacts
    ```

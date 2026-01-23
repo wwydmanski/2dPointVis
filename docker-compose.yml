@@ -9,7 +9,8 @@ services:
       - DATA_WEBSERVER_PATH=${DATA_WEBSERVER_PATH}
     volumes:
       - ./backend:/app
-      - ${DATA_PATH:-./data}:/mnt/data
+      - ${DATA_PATH}:${DATA_PATH}
+      - ${DATA_WEBSERVER_PATH}:${DATA_WEBSERVER_PATH}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=(Host(`protein-structure-landscape.sano.science`) && (PathPrefix(`/api/ws`) || PathPrefix(`/api`)))"
