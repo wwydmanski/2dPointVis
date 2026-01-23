@@ -1,7 +1,10 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, Response, BackgroundTasks
+from pydantic import BaseModel
+from fastapi import Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.encoders import jsonable_encoder
 import uvicorn
 import pandas as pd
 from loguru import logger
@@ -12,48 +15,117 @@ import asyncio
 import traceback
 import os
 import time
-import concurrent.futures
 from functools import lru_cache
 import re
 import tqdm
+import csv
+import uuid
+from typing import Dict, Any
+from pathlib import Path
+from itertools import chain 
 
+# Read DATA_PATH from environment variable
+DATA_PATH = os.environ.get("DATA_PATH")
+if not DATA_PATH:
+    raise RuntimeError("DATA_PATH environment variable is not set")
+
+# Read DATA_WEBSERVER_PATH from environment variable
+DATA_WEBSERVER_PATH = os.environ.get("DATA_WEBSERVER_PATH")
+if not DATA_WEBSERVER_PATH:
+    raise RuntimeError("DATA_WEBSERVER_PATH environment variable is not set")
 
 start_time = time.time()
-DATA_FULL = pd.read_parquet(
-    "/mnt/data/data.parquet"
-).drop(columns=["afdb_hq"])
+DATA_FULL = pd.read_csv(
+    f"{DATA_WEBSERVER_PATH}/data.csv"
+).drop(columns=["afdb_hq"]).set_index('index')
 DATA_FULL["protein"] = list(DATA_FULL.index)
-DATA = DATA_FULL.dropna(subset=["x", "y"])
-DATA = DATA.rename(columns={"origin": "taxonomy_name", "database": "origin"})
+DATA_FULL = DATA_FULL.rename(columns={"origin": "taxonomy_name", "database": "origin", "origin_mod": "taxonomy_name_mod"})
 
-logger.info(f"Taxonomy: {DATA['taxonomy'].value_counts()}")
+logger.info(f"Taxonomy: {DATA_FULL['taxonomy'].value_counts()}")
 
-logger.info(f"Loading main data took {time.time() - start_time:.2f}s ({len(DATA)} points)")
+logger.info(f"Loading main data took {time.time() - start_time:.2f}s ({len(DATA_FULL)} points)")
 
-logger.info(f"Columns: {DATA.columns}")
-logger.info(f"Data: {DATA.iloc[0]}")
+logger.info(f"Columns: {DATA_FULL.columns}")
+logger.info(f"Data: {DATA_FULL.iloc[0]}")
 
-DATA = DATA.sample(frac=1, random_state=42)
-DATA.loc[
-    (DATA["origin"] != "AFDB light clusters") & (DATA["origin"] != "AFDB dark clusters"),
+DATA_FULL = DATA_FULL.sample(frac=1, random_state=42)
+DATA_FULL.loc[
+    (DATA_FULL["origin"] != "AFDB light clusters") & (DATA_FULL["origin"] != "AFDB dark clusters"),
     "afdb_pLDDT",
 ] = -1
-DATA["clean_name"] = DATA["protein"].str.replace("AF-", "").str.replace("-model_v4", "").str.replace("-F1", "")
-DATA["representative"] = DATA["clean_name"]
+DATA_FULL["clean_name"] = DATA_FULL["protein"].str.replace("AF-", "").str.replace("-model_v4", "").str.replace("-F1", "")
+DATA_FULL["representative"] = DATA_FULL["clean_name"]
+DATA_FULL.set_index("protein")
+DATA = DATA_FULL[DATA_FULL['cluster_or_singleton'] == DATA_FULL.index]
 
-PDB_LOC = "/mnt/data/mip-follow-up_clusters/struct/"
-GOTERM_LOC = "/mnt/data/deepfri_predictions_HQ"
-PROTEIN_GOTERM_LOC = "/mnt/data/deepfri_predictions_protein_HQ"
+PDB_LOC = f"{DATA_PATH}/mip-follow-up_clusters/struct/"
+GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_HQ"
+PROTEIN_GOTERM_LOC = f"{DATA_WEBSERVER_PATH}/deepfri_predictions_protein_HQ"
+ORIGIN_COUNTS_LOC = f"{DATA_WEBSERVER_PATH}/origin_counts_mod.csv"
+
+ORIGINS_ALL = pd.read_csv(ORIGIN_COUNTS_LOC)
 
 start_time = time.time()
 GOTERMS_NAME = pd.read_csv(
-    "/mnt/data/gonames.csv", index_col=0
+    f"{DATA_WEBSERVER_PATH}/gonames.csv", index_col=0
 ).rename(columns={"index": "GOterm"})
 logger.info(f"Loading GO terms names took {time.time() - start_time:.2f}s")
 
+TOP_10_GEOTERM_NAMES = [
+    { "GOname": "cell periphery", "GOterm": "GO:0071944", "Ontology": "CC" },
+    { "GOname": "cellular component organization", "GOterm": "GO:0016043", "Ontology": "BP" },
+    { "GOname": "cellular response to stimulus", "GOterm": "GO:0051716", "Ontology": "BP" },
+    { "GOname": "integral component of membrane", "GOterm": "GO:0016021", "Ontology": "CC" },
+    { "GOname": "intrinsic component of membrane", "GOterm": "GO:0031224", "Ontology": "CC" },
+    { "GOname": "nucleus", "GOterm": "GO:0005634", "Ontology": "CC" },
+    { "GOname": "plasma membrane", "GOterm": "GO:0005886", "Ontology": "CC" },
+    { "GOname": "RNA metabolic process", "GOterm": "GO:0016070", "Ontology": "BP" }
+]
+
+TOP_ORIGIN_NAMES = [
+    {'origin': 'Environmental', 'count': 857043},
+    {'origin': 'Aquatic', 'count': 790514},
+    {'origin': 'Marine', 'count': 447868},
+    {'origin': 'Engineered', 'count': 365711},
+    {'origin': 'Host-associated', 'count': 273393},
+    {'origin': 'Freshwater', 'count': 254984},
+    {'origin': 'Wastewater', 'count': 224070},
+    {'origin': 'Oceanic', 'count': 191129},
+    {'origin': 'Digestive system', 'count': 165348},
+    {'origin': 'Sediment', 'count': 142273},
+    {'origin': 'Human', 'count': 128644},
+    {'origin': 'Mixed', 'count': 124305},
+    {'origin': 'Unknown', 'count': 24382},
+    {'origin': 'Deltaproteobacteria bacterium', 'count': 16958},
+    {'origin': 'Acidobacteriota bacterium', 'count': 15555},
+    {'origin': 'Chloroflexota bacterium', 'count': 12002},
+    {'origin': 'Actinomycetes bacterium', 'count': 10066},
+    {'origin': 'Planctomycetota bacterium', 'count': 9843},
+    {'origin': 'Escherichia coli', 'count': 9840},
+    {'origin': 'Ktedonobacter racemife', 'count': 820},
+    {'origin': 'Mycobacterium genavense', 'count': 370},
+    {'origin': 'Amycolatopsis taiwanensis', 'count': 361}
+]
+
+MAPPED_COLUMN_NAMES = {
+    "protein_id": "protein",
+    "database": "origin",
+    "repr_protein_id": "cluster_or_singleton",
+    "x": "x",
+    "y": "y",
+    "length": "length",
+    "afdb_pLDDT": "afdb_pLDDT",
+    "superCOG_v10": "superCOG_v10",
+    "superCOG_v11": "superCOG_v11",
+    "taxonomy": "taxonomy",
+    "origin": "taxonomy_name",
+    "origin_mod": "taxonomy_name_mod",
+    "url": "url"
+}
+
 start_time = time.time()
 REPRESENTATIVE_MAPPING = pd.read_parquet(
-    "/mnt/data/all_clusters_nf.parquet"
+    f"{DATA_WEBSERVER_PATH}/all_clusters_nf.parquet"
 )
 logger.info(f"Loading representative mapping took {time.time() - start_time:.2f}s")
 REPRESENTATIVE_MAPPING["Protein"] = REPRESENTATIVE_MAPPING["Protein"].map(lambda x: json.loads(x))
@@ -87,6 +159,19 @@ matching_data = DATA[matching_mask]
 from tqdm import tqdm
 CLUSTER_TO_DATA = {row['clean_name_lower']: row for _, row in tqdm(matching_data.iterrows(), desc="Building cluster to data mapping", total=len(matching_data))}
 
+taxonomy_exploded = (
+    DATA_FULL.dropna(subset=["taxonomy_name_mod"])
+    .assign(taxonomy_name_mod=DATA_FULL["taxonomy_name_mod"].str.split(","))
+    .explode("taxonomy_name_mod")
+)
+
+taxonomy_exploded["taxonomy_name_mod"] = taxonomy_exploded["taxonomy_name_mod"].str.strip()
+
+ORIGIN_MAP = {
+    name: group
+    for name, group in taxonomy_exploded.groupby("taxonomy_name_mod")
+}
+
 logger.info(f"Building search indices took {time.time() - start_time:.2f}s")
 
 @lru_cache(maxsize=1000)
@@ -95,9 +180,53 @@ def search_proteins(search_term):
     search_term_lower = search_term.lower()
     pattern = re.compile(search_term_lower)
     # Fast regex-based search through keys
-    matching_keys = [key for key in PROTEIN_INDEX_MAP.keys() 
+    matching_keys = [key.strip() for key in PROTEIN_INDEX_MAP.keys() 
                      if pattern.search(key)]
     return matching_keys[:100]  # Limit to 100 matching proteins
+
+
+@lru_cache(maxsize=1000)
+def search_origins(origins_term):
+    origins_term_lower = origins_term.lower()
+    pattern = re.compile(".*"+origins_term_lower+".*")
+    # Fast regex-based search through keys
+    matching_origins = [
+        row._asdict()
+        for row in ORIGINS_ALL.itertuples(index=False)
+        if pattern.search(row.origin.lower())
+    ]
+    sorted_origins = sorted(matching_origins, key=lambda x: int(x["count"]), reverse=True)
+    return sorted_origins[:100]  # Limit to 100 matching proteins
+
+def search_proteins_by_origins(origins_term: str, source: pd.DataFrame) -> pd.DataFrame:
+    source_key = "data_full" if source is DATA_FULL else "data_core"
+    return _search_proteins_by_origins_cached(origins_term, source_key)
+
+
+@lru_cache(maxsize=1000)
+def _search_proteins_by_origins_cached(origins_term: str, source_key: str) -> pd.DataFrame:
+    source = DATA_FULL if source_key == "data_full" else DATA
+
+    if not origins_term:
+        return source.iloc[0:0]
+
+    try:
+        pattern = re.compile(".*" + origins_term + ".*", re.IGNORECASE)
+    except re.error:
+        pattern = re.compile(re.escape(".*" + origins_term + ".*"), re.IGNORECASE)
+
+    matching_groups = [
+        group
+        for name, group in ORIGIN_MAP.items()
+        if pattern.search(name)
+    ]
+
+    if not matching_groups:
+        return source.iloc[0:0]
+
+    combined = pd.concat(matching_groups, ignore_index=True)
+    combined = combined.drop_duplicates(subset="protein", keep="first")
+    return combined
 
 GOTERMS_CACHE = {}
 
@@ -110,17 +239,21 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Length", "Content-Disposition"]
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 api_router = APIRouter(prefix="/api")
 
-def get_initial_points():
+def get_initial_points(goTerm = None, ontology = None):
     start_time = time.time()
-    subset_orig = DATA.sample(10000, random_state=42)
+    if goTerm and ontology:
+        subset_orig = get_points(goterm = goTerm, ontology = ontology, number_of_points = 10000)
+    else:
+        subset_orig = DATA.sample(10000, random_state=42).to_dict(orient="records")
     logger.info(f"Initial points sampling took {time.time() - start_time:.2f}s")
-    return subset_orig.to_dict(orient="records")
+    return subset_orig
 
 
 def get_points(
@@ -134,37 +267,47 @@ def get_points(
     supercog: str = "",
     goterm: str = "",
     ontology: str="",
-    taxonomy: str=""
+    taxonomy: str="",
+    number_of_points: int = 1000,
+    ids = "",
+    columns = [],
+    onlyRepresentatives=True,
+    source=DATA
 ):
     total_start_time = time.time()
     conditions = []
+
+    if ids:
+        ids = ids.split(",")
+        conditions.append(source["clean_name"].isin(ids))
+
     if len(types) > 0:
         types = types.split(",")
-        conditions.append(DATA["origin"].isin(types))
+        conditions.append(source["origin"].isin(types))
     
     if lengthRange:
         lengthRange = lengthRange.split(",")
         lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
         conditions.append(
-            (DATA.length >= lengthRange[0]) & (DATA.length <= lengthRange[1])
+            (source.length >= lengthRange[0]) & (source.length <= lengthRange[1])
         )
 
     if pLDDT:
         pLDDT = pLDDT.split(",")
         pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
-        minus_one = DATA["afdb_pLDDT"] == -1
-        larger = DATA["afdb_pLDDT"] <= pLDDT[1]
-        smaller = DATA["afdb_pLDDT"] >= pLDDT[0]
+        minus_one = source["afdb_pLDDT"] == -1
+        larger = source["afdb_pLDDT"] <= pLDDT[1]
+        smaller = source["afdb_pLDDT"] >= pLDDT[0]
 
         conditions.append((minus_one | (larger & smaller)))
 
     if supercog:
         supercog = supercog.split(",")
-        conditions.append(DATA["superCOG_v10"].isin(supercog))
+        conditions.append(source["superCOG_v10"].isin(supercog))
         
     if taxonomy:
         taxonomy_split = taxonomy.split(",")
-        conditions.append(DATA["taxonomy"].isin(taxonomy_split))
+        conditions.append(source["taxonomy"].isin(taxonomy_split))
         
     logger.info(f"Goterm: {goterm}, ontology: {ontology}, taxonomy: {taxonomy}")
     if goterm:
@@ -185,29 +328,107 @@ def get_points(
             logger.info(f"Loading GO term data took {time.time() - cache_time:.2f}s")
             
         intersect_time = time.time()
-        names = set(DATA["protein"])
+        names = set(source["protein"])
         names = names.intersection(GOTERMS_CACHE[goterm])
-        conditions.append(DATA["protein"].isin(names))
+        conditions.append(source["protein"].isin(names))
         logger.info(f"Intersection took {time.time() - intersect_time:.2f}s")
         logger.info(f"Total GO term processing took {time.time() - start_time:.2f}s")
         
     filter_start_time = time.time()
-    mask = ((DATA.x >= x0) & (DATA.x <= x1) & (DATA.y >= y0) & (DATA.y <= y1))
+    mask = ((source.x >= x0) & (source.x <= x1) & (source.y >= y0) & (source.y <= y1))
+
+    if onlyRepresentatives:
+        conditions.append(source['cluster_or_singleton'] == source['protein'])
 
     # Add all other conditions to the mask at once
     if conditions:
         for cond in conditions:
             mask &= cond
         
-    subset = DATA[mask]
+    subset = source[mask]
+
     logger.info(f"Initial spatial filtering took {time.time() - filter_start_time:.2f}s")
     
-    if len(subset) > 1000:
-        # get only top 1000
-        subset = subset[:1000]
+    if len(subset) > number_of_points:
+        subset = subset[:number_of_points]
+
+    if len(columns) > 0:
+        subset = subset[list(map(lambda column: MAPPED_COLUMN_NAMES[column], columns))]
+    
+    if 'length' in subset.columns:
+        subset['length'] = subset['length'].astype('Int64')
         
     logger.info(f"Total get_points processing took {time.time() - total_start_time:.2f}s with {len(subset)} results")
     return subset.to_dict(orient="records")
+
+
+def filter_rows(
+    rows,
+    x0: float = -15,
+    x1: float = 15,
+    y0: float = -25,
+    y1: float = 15,
+    types: str = "",
+    lengthRange: str = "",
+    pLDDT: str = "",    
+    supercog: str = "",
+    taxonomy: str = ""
+):
+    if pLDDT:
+        pLDDT = pLDDT.split(",")
+        pLDDT = [int(pLDDT[0]), int(pLDDT[1])]
+    
+    if supercog:
+        supercog = supercog.split(",")
+        
+    if taxonomy:
+        taxonomy_split = taxonomy.split(",")
+    
+    if len(types) > 0:
+        types = types.split(",")
+    
+    if lengthRange:
+        lengthRange = lengthRange.split(",")
+        lengthRange = [int(lengthRange[0]), int(lengthRange[1])]
+    
+    res = []
+    for index, row in rows.iterrows():
+        if not types or (row.x >= x0 and row.x <= x1 and row.y >= y0 and row.y < y1 and row.length >= lengthRange[0] and row.length <= lengthRange[1] \
+            and (row["afdb_pLDDT"] == "" or row["afdb_pLDDT"] == -1 or (row["afdb_pLDDT"] >= pLDDT[0] and row["afdb_pLDDT"] <= pLDDT[1])) and row["taxonomy"] in taxonomy and row["superCOG_v10"] in supercog \
+            and row["origin"] in types):
+            res.append(row)
+    return res
+
+
+@api_router.get("/find_origins")
+async def find_origins(origin: str):
+    if not origin:
+        return TOP_ORIGIN_NAMES
+
+    return search_origins(origin)
+
+
+@api_router.get("/origin_count", response_class=JSONResponse)
+async def origin_count(regex: str = ""):
+    if not regex:
+        return {"count": 0}
+
+    try:
+        pattern = re.compile(regex, re.IGNORECASE)
+    except re.error:
+        pattern = re.compile(re.escape(regex), re.IGNORECASE)
+
+    total = 0
+    for row in ORIGINS_ALL.itertuples(index=False):
+        origin_value = getattr(row, "origin", "")
+        count_value = getattr(row, "count", 0)
+        if pattern.search(str(origin_value)):
+            try:
+                total += int(count_value)
+            except (TypeError, ValueError):
+                continue
+
+    return {"count": int(total)}
 
 
 @api_router.get("/points_init")
@@ -227,14 +448,15 @@ async def points(
     supercog: str = "",
     goterm: str = "",
     ontology: str = "",
-    taxonomy: str = ""
+    taxonomy: str = "",
+    origin: str = ""
 ):
-    return get_points(x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, goterm, ontology, taxonomy)
+    return get_points(x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, goterm, ontology, taxonomy, source=DATA if not origin else search_proteins_by_origins(origin, DATA))
 
 @api_router.get("/pdb_loc/{protein:str}")
 async def pdb_loc(protein: str):
     # return DATA_FULL.loc[protein, "pdb_loc"]
-    row = DATA_FULL[DATA_FULL["protein"] == protein]
+    row = DATA_FULL[DATA_FULL.index == protein]
     if len(row) == 0:
         return None
     return row["pdb_loc"].values[0]
@@ -251,6 +473,34 @@ async def pdb(pdb_id: str):
         cif_to_pdb(full_loc, full_loc + ".pdb")
         logger.info(f"CIF to PDB conversion took {time.time() - start_time:.2f}s")
         return full_loc + ".pdb"
+
+class GotermBody(BaseModel):
+    points: list[str]
+    goterm: str
+    ontology: str
+
+@api_router.post("/goterm")
+async def goterms(body: GotermBody):
+    points = body.points
+    goterm = body.goterm
+    ontology = body.ontology
+
+    goterm_loc = f"{GOTERM_LOC}/{ontology}/{goterm}.csv"
+    if not os.path.exists(goterm_loc):
+        return [False for _ in range(10000)]
+    
+    if goterm not in GOTERMS_CACHE:
+        goterm_df = pd.read_csv(goterm_loc)
+        GOTERMS_CACHE[goterm] = set(goterm_df["Protein"].tolist())
+
+    result = []
+
+    for point_id in points:  
+        if point_id in GOTERMS_CACHE[goterm]:
+            result.append(True)
+        else:
+            result.append(False)
+    return result
 
 @api_router.get("/goterm/{protein:str}")
 async def protein_goterm(protein: str):
@@ -297,8 +547,53 @@ async def protein_goterm(protein: str):
         return {"error": f"Error processing GO terms: {str(e)}"}
 
 
+@api_router.get("/find_proteins_by_name")
+async def find_proteins_by_name(
+    name: str,
+    x0: float = -15,
+    x1: float = 15,
+    y0: float = -25,
+    y1: float = 15,
+    types: str = "",
+    lengthRange: str = "",
+    pLDDT: str = "",    
+    supercog: str = "",
+    taxonomy: str = ""
+):
+    start_time = time.time()
+    
+    # Use cached regex search for faster matching
+    matching_keys = search_proteins(name)
+    
+    if not matching_keys:
+        return []
+    
+    # Get original indices
+    original_indices = [PROTEIN_INDEX_MAP[key] for key in matching_keys[:10]]
+    
+    # Fast lookup using iloc
+    all_matching = REVERSE_REPRESENTATIVE_MAPPING.loc[original_indices]
+    rows = DATA_FULL.loc[original_indices]
+    logger.info(f"Finding matching names took {time.time() - start_time:.2f}s")
+
+    res = filter_rows(rows, x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, taxonomy)
+
+    return [row["protein"] for row in res]
+
+
 @api_router.get("/name_search")
-async def name_search(name: str):
+async def name_search(
+    name: str,
+    x0: float = -15,
+    x1: float = 15,
+    y0: float = -25,
+    y1: float = 15,
+    types: str = "",
+    lengthRange: str = "",
+    pLDDT: str = "",    
+    supercog: str = "",
+    taxonomy: str = ""
+):
     start_time = time.time()
     
     # Use cached regex search for faster matching
@@ -322,25 +617,141 @@ async def name_search(name: str):
         cluster_lower = cluster.lower()
         if cluster_lower in CLUSTER_TO_DATA:
             data_ = CLUSTER_TO_DATA[cluster_lower].to_dict()
+            data_["chosen_protein"] = DATA_FULL.loc[name].fillna("").to_dict()
             data_["representative"] = cluster
             data_["protein"] = found_name
-            other_protein_names = REPRESENTATIVE_MAPPING.loc[cluster, "Protein"]
-            other_protein_urls = [DATA_FULL.loc[protein, "url"] for protein in other_protein_names]
-            data_["others"] = [({"name": protein, "url": url} for protein, url in zip(other_protein_names, other_protein_urls))]
+            other_proteins_data = DATA_FULL[DATA_FULL["cluster_or_singleton"] == cluster]
+            other_values = [{"name": row["clean_name"], "url": row["url"]} for row in filter_rows(other_proteins_data, x0, x1, y0, y1, types, lengthRange, pLDDT, supercog, taxonomy)]
+            for i, row in enumerate(other_values):
+                if row["name"] == cluster:
+                    value = other_values.pop(i)
+                    other_values.insert(0, value)
+                    break
+            data_["others"] = other_values
             subset.append(data_)
-    
     logger.info(f"Processing matching names took {time.time() - processing_start_time:.2f}s")
-    return subset
+    return jsonable_encoder(subset)
 
 
 @api_router.get("/goterm_autocomplete")
 async def goterm_autocomplete(goterm: str):
+    if goterm == "" or goterm is None:
+        return TOP_10_GEOTERM_NAMES
     start_time = time.time()
     subset = GOTERMS_NAME[
         GOTERMS_NAME["GOname"].str.lower().str.contains(goterm.lower())
     ][:10]
     logger.info(f"GO term autocomplete for '{goterm}' took {time.time() - start_time:.2f}s")
     return subset.to_dict(orient="records")
+
+EXPORT_DIR = Path("exports")
+EXPORT_DIR.mkdir(exist_ok=True)
+
+jobs: Dict[str, Dict[str, Any]] = {}
+
+def generate_tsv(job_id: str, body: dict):
+    pLDDT = body.get("pLDDT", [])
+    lengthRange = body.get("lengthRange", [])
+    taxonomy = body.get("taxonomy", [])
+    supercog = body.get("supercog", [])
+    selectedSources = body.get("selectedSources", [])
+    columnNames = body.get("columnNames")
+    x0 = body.get("x0")
+    x1 = body.get("x1")
+    y0 = body.get("y0")
+    y1 = body.get("y1")
+    ontology = body.get("ontology")
+    goTerm = body.get("goTerm")
+    ids = body.get("ids", [])
+    onlyRepresentatives = body.get("onlyRepresentatives", False)
+    origin = body.get("origin", "")
+
+    points = get_points(
+        x0=float(x0),
+        x1=float(x1),
+        y0=float(y0),
+        y1=float(y1),
+        types=",".join(map(str, selectedSources)),
+        lengthRange=",".join(map(str, lengthRange)),
+        pLDDT=",".join(map(str, pLDDT)),
+        supercog=",".join(map(str, supercog)),
+        goterm=goTerm,
+        ontology=ontology,
+        taxonomy=",".join(map(str, taxonomy)),
+        number_of_points=10000000,
+        ids=",".join(ids),
+        columns=columnNames,
+        onlyRepresentatives=onlyRepresentatives,
+        source=DATA_FULL if not origin else search_proteins_by_origins(origin, DATA_FULL)
+    )
+
+    file_path = EXPORT_DIR / f"{job_id}.tsv"
+    with file_path.open("w", newline='') as f:
+        writer = csv.writer(f, delimiter='\t')
+        if points and len(points) > 0:
+            header = [MAPPED_COLUMN_NAMES[col] for col in columnNames]
+            writer.writerow(header)
+            for point in points:
+                cleaned_row = []
+                for key, value in point.items():
+                    if key in ("x", "y"):
+                        cleaned_row.append(value)
+                    elif isinstance(value, (int, float)) and value in (-1, -1.0):
+                        cleaned_row.append("NaN")
+                    else:
+                        cleaned_row.append(value)
+                writer.writerow(cleaned_row)
+
+    jobs[job_id]["status"] = "ready"
+    jobs[job_id]["file_path"] = str(file_path)
+
+@api_router.post("/export_to_tsv/start")
+async def start_export(request: Request, background_tasks: BackgroundTasks):
+    body = await request.json()  # body["filters"] will have your filters object
+    filters = body.get("filters")
+    if not filters:
+        return JSONResponse(status_code=400, content={"error": "Missing filters"})
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing"}
+    background_tasks.add_task(generate_tsv, job_id, filters)
+    return {"job_id": job_id, "status": "processing"}
+
+
+@api_router.get("/export_to_tsv/status/{job_id}")
+async def export_status(job_id: str):
+    job = jobs.get(job_id)
+    if not job:
+        return JSONResponse(status_code=404, content={"error": "Job not found"})
+    return job
+
+
+@api_router.get("/export_to_tsv/download/{job_id}")
+async def export_download(job_id: str, background_tasks: BackgroundTasks):   
+    job = jobs.get(job_id)
+    if not job or job.get("status") != "ready":
+        return JSONResponse(status_code=404, content={"error": "File not ready"})
+    
+    file_path = job["file_path"]
+    file_size = os.path.getsize(file_path)
+    response = FileResponse(
+        file_path,
+        filename="data.tsv",
+        media_type="text/tab-separated-values",
+        headers={"Content-Length": str(file_size)}
+    )
+
+    # Schedule file deletion after sending response
+    def delete_file(path):
+        try:
+            os.remove(path)
+            print(f"Deleted {path}")
+        except Exception as e:
+            print(f"Failed to delete {path}: {e}")
+
+    background_tasks.add_task(delete_file, file_path)
+
+    return response
+
 
 @api_router.websocket("/ws/points")
 async def websocket_endpoint(websocket: WebSocket):
@@ -355,7 +766,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if data.get("type") == "init":
                 # Handle initial data load - these points stay permanently
-                points = get_initial_points()
+                points = get_initial_points(goTerm = None, ontology = None)
                 await websocket.send_json(
                     {
                         "type": "init",
@@ -377,7 +788,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         supercog=",".join(map(str, data.get("supercog", []))),
                         goterm=data.get("goTerm", ""),
                         ontology=data.get("ontology", ""),
-                        taxonomy=",".join(map(str, data.get("taxonomy", [])))
+                        taxonomy=",".join(map(str, data.get("taxonomy", []))),
+                        source=DATA if not data.get("origin") else search_proteins_by_origins(data.get("origin"), DATA)
                     )
                     
                     if len(points) == 0:

@@ -19,6 +19,7 @@ The tool presents a unified, low-dimensional representation of the protein space
 - Interactive 2D scatter plot visualization of protein structures
 - Filtering options for protein length, pLDDT scores, and superCOG annotations
 - Search functionality to find specific proteins by name
+- Finding proteins by their origin and function
 - Detailed information display for selected proteins
 - 3D protein structure viewer for individual proteins
 - Publication details and contact information
@@ -26,24 +27,123 @@ The tool presents a unified, low-dimensional representation of the protein space
 ## Technology Stack
 
 - Frontend: React.js with Material-UI for the user interface
-- Charting: SciChart for high-performance 2D plotting
+- Charting: CosmoGL for high-performance 2D plotting
 - 3D Visualization: PDBe Molstar for protein structure rendering
-- Backend: Django (not included in this repository)
+- Backend: FastAPI
 
-## Getting Started
+## Running in development mode
+
+### Prerequisities
+   - Having webserver data fetched locally (including `data.parquet`, counts csv files etc.). There should be an Environment Variable `DATA_WEBSERVER_PATH` set pointing into this directory.
+   - (Optional) Having fetched mip follow up clusters and having an Environment Variable `DATA_PATH` set pointing to this directory. WARNING: although this is optional, the env var must be set (even into an empty directory).
 
 1. Clone the repository
-2. Install dependencies:
+2. (Once) Install frontend dependencies:
    ```
-   npm install
+   cd frontend
+   yarn install
+   cd ..
    ```
-3. Set up the environment variable for the backend:
+3. (Once) Install backend dependencies:
    ```
-   VITE_DJANGO_HOST=<your_backend_url>
+   cd backend
+   pip3 install -r requirements.txt
+   cd ..
    ```
-4. Run the development server:
+4. (Once) Set the environment variables for backend:
    ```
+   export DATA_WEBSERVER_PATH="{path to data for webserver}"
+   export DATA_PATH="{path to mip follow up clusters}"
+   ```
+5. Run backend
+   ```
+   python backend/server.py
+   ```
+6. (in a separate terminal) Set up the environment variable for frontend:
+   ```
+   export VITE_DJANGO_HOST="http://localhost:8000"
+   ```
+7. Run frontend:
+   ```
+   cd frontend
    npm run dev
+   ```
+
+## Running in production
+
+### Prerequisities
+   - Having webserver data fetched locally (including `data.parquet`, counts csv files etc.). There should be an Environment Variable `DATA_WEBSERVER_PATH` set pointing into this directory.
+   - Having fetched mip follow up clusters and having an Environment Variable `DATA_PATH` set pointing to this directory.
+   - having docker and docker compose installed.
+
+### No SSL Mode
+
+1. Clone the repository
+2. (Once) Install frontend dependencies:
+   ```
+   cd frontend
+   yarn install
+   ```
+3. Build frontend artifacts
+   ```
+   npm run build
+   cd ..
+   ```
+4. (Once) Set the environment variables for backend:
+   ```
+   export DATA_WEBSERVER_PATH="{path to data for webserver}"
+   export DATA_PATH="{path to mip follow up clusters}"
+   ```
+5. (Once) Set the environment variables for nginx:
+   ```
+   export EXTERNAL_PORT={external port to your VM, defaults to 8081}
+   ```
+6. If the application is running in docker, put it down
+   ```
+   sudo docker compose down
+   ```
+7. Run the application
+   ```
+   sudo --preserve-env=DATA_PATH,DATA_WEBSERVER_PATH,EXTERNAL_PORT docker compose up --build -d
+   ```
+
+### SSL Mode
+
+1. Clone the repository
+2. (Once) Install frontend dependencies:
+   ```
+   cd frontend
+   yarn install
+   ```
+3. Build frontend artifacts
+   ```
+   npm run build
+   cd ..
+   ```
+4. (Once) Set the environment variables for backend:
+   ```
+   export DATA_WEBSERVER_PATH="{path to data for webserver}"
+   export DATA_PATH="{path to mip follow up clusters}"
+   ```
+5. (Once) Set the environment variables for nginx:
+   ```
+   export EXTERNAL_PORT={external port to your VM, defaults to 8081}
+   export USE_SSL="1"
+   ```
+6. Generate a certificate if it's not present:
+   ```
+   sudo snap install --classic certbot
+   sudo ln -s /snap/bin/certbot /usr/local/bin/certbot
+   sudo certbot certonly --webroot -w ${pwd}/certbot/www -d ${echo $DOMAIN} --email ${echo $EMAIL} --agree-tos --no-eff-email
+   ```
+   Where EMAIL env is your email and DOMAIN is your domain (currently it's `protein-structure-landscape.sano.science`)
+7. If the application is running in docker, put it down
+   ```
+   sudo docker compose down
+   ```
+8. Run the application
+   ```
+   sudo --preserve-env=DATA_PATH,DATA_WEBSERVER_PATH,EXTERNAL_PORT,USE_SSL docker compose up --build -d
    ```
 
 ## Usage
