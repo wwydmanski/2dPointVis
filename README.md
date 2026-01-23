@@ -52,8 +52,8 @@ The tool presents a unified, low-dimensional representation of the protein space
    ```
 4. (Once) Set the environment variables for backend:
    ```
-   DATA_WEBSERVER_PATH="{path to data for webserver}"
-   DATA_PATH="{path to mip follow up clusters}"
+   export DATA_WEBSERVER_PATH="{path to data for webserver}"
+   export DATA_PATH="{path to mip follow up clusters}"
    ```
 5. Run backend
    ```
@@ -61,7 +61,7 @@ The tool presents a unified, low-dimensional representation of the protein space
    ```
 6. (in a separate terminal) Set up the environment variable for frontend:
    ```
-   VITE_DJANGO_HOST="http://localhost:8000"
+   export VITE_DJANGO_HOST="http://localhost:8000"
    ```
 7. Run frontend:
    ```
@@ -76,6 +76,8 @@ The tool presents a unified, low-dimensional representation of the protein space
    - Having fetched mip follow up clusters and having an Environment Variable `DATA_PATH` set pointing to this directory.
    - having docker and docker compose installed.
 
+### No SSL Mode
+
 1. Clone the repository
 2. (Once) Install frontend dependencies:
    ```
@@ -89,18 +91,60 @@ The tool presents a unified, low-dimensional representation of the protein space
    ```
 4. (Once) Set the environment variables for backend:
    ```
-   DATA_WEBSERVER_PATH="{path to data for webserver}"
-   DATA_PATH="{path to mip follow up clusters}"
+   export DATA_WEBSERVER_PATH="{path to data for webserver}"
+   export DATA_PATH="{path to mip follow up clusters}"
    ```
-4. If the application is running in docker, put it down
+5. (Once) Set the environment variables for nginx:
+   ```
+   export EXTERNAL_PORT={external port to your VM, defaults to 8081}
+   ```
+6. If the application is running in docker, put it down
    ```
    sudo docker compose down
    ```
-5. Run the application
+7. Run the application
    ```
-   sudo --preserve-env=DATA_PATH,DATA_WEBSERVER_PATH docker compose up --build -d
+   sudo --preserve-env=DATA_PATH,DATA_WEBSERVER_PATH,EXTERNAL_PORT docker compose up --build -d
    ```
-   
+
+### SSL Mode
+
+1. Clone the repository
+2. (Once) Install frontend dependencies:
+   ```
+   cd frontend
+   yarn install
+   ```
+3. Build frontend artifacts
+   ```
+   npm run build
+   cd ..
+   ```
+4. (Once) Set the environment variables for backend:
+   ```
+   export DATA_WEBSERVER_PATH="{path to data for webserver}"
+   export DATA_PATH="{path to mip follow up clusters}"
+   ```
+5. (Once) Set the environment variables for nginx:
+   ```
+   export EXTERNAL_PORT={external port to your VM, defaults to 8081}
+   export USE_SSL="1"
+   ```
+6. Generate a certificate if it's not present:
+   ```
+   sudo snap install --classic certbot
+   sudo ln -s /snap/bin/certbot /usr/local/bin/certbot
+   sudo certbot certonly --webroot -w ${pwd}/certbot/www -d ${echo $DOMAIN} --email ${echo $EMAIL} --agree-tos --no-eff-email
+   ```
+   Where EMAIL env is your email and DOMAIN is your domain (currently it's `protein-structure-landscape.sano.science`)
+7. If the application is running in docker, put it down
+   ```
+   sudo docker compose down
+   ```
+8. Run the application
+   ```
+   sudo --preserve-env=DATA_PATH,DATA_WEBSERVER_PATH,EXTERNAL_PORT,USE_SSL docker compose up --build -d
+   ```
 
 ## Usage
 
