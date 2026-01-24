@@ -25,7 +25,7 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
     command: /bin/sh -c "if [ \"${USE_SSL}\" = \"1\" ]; then cp /etc/nginx/nginx_ssl.conf /etc/nginx/nginx.conf; else cp /etc/nginx/nginx_nossl.conf /etc/nginx/nginx.conf; fi && exec nginx -g 'daemon off;'"
     ports:
-      - "80:80"
+      - "${EXTERNAL_PORT}:80"
       - "${EXTERNAL_PORT}:443"
     depends_on:
       - backend

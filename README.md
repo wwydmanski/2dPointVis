@@ -97,6 +97,7 @@ The tool presents a unified, low-dimensional representation of the protein space
 5. (Once) Set the environment variables for nginx:
    ```
    export EXTERNAL_PORT={external port to your VM, defaults to 8081}
+   export USE_SSL="0"
    ```
 6. If the application is running in docker, put it down
    ```
@@ -104,7 +105,7 @@ The tool presents a unified, low-dimensional representation of the protein space
    ```
 7. Run the application
    ```
-   sudo --preserve-env=DATA_PATH,DATA_WEBSERVER_PATH,EXTERNAL_PORT docker compose up --build -d
+   sudo --preserve-env=DATA_PATH,DATA_WEBSERVER_PATH,EXTERNAL_PORT,USE_SSL docker compose up --build -d
    ```
 
 ### SSL Mode
