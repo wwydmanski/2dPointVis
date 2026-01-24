@@ -78,6 +78,8 @@ The tool presents a unified, low-dimensional representation of the protein space
 
 ### No SSL Mode
 
+In this mode, the application runs on port 8080.
+
 1. Clone the repository
 2. (Once) Install frontend dependencies:
    ```
